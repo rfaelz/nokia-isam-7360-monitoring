@@ -1,0 +1,26 @@
+# Editor
+.vscode/
+.idea/
+*.swp
+*~
+*.orig
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+
+# Zabbix — exports temporários e backups
+*.bak
+
+# Grafana — dados locais (não versionar bancos de dados nem uploads)
+grafana/data/
+grafana/*.db
+grafana/logs/
+grafana/plugins/
+
+# Arquivos de configuração local (sobrescritas locais não devem entrar no repo)
+*.local.yaml
+*.local.yml
+*.local.json
