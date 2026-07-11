@@ -1,57 +1,50 @@
-# Nokia ISAM 7360 FX — Zabbix Monitoring
+# Nokia ISAM 7360 FX — Zabbix + Grafana Monitoring
 
-Template Zabbix 6.0 para monitoramento completo da OLT **Nokia 7360 ISAM FX** (nível de OLT),
-via SNMP v2c com OIDs proprietários Nokia (enterprise `.637`) e MIB-II padrão.
+Complete monitoring for the **Nokia 7360 ISAM FX** OLT (OLT level), over SNMP v2c
+using Nokia proprietary OIDs (enterprise `.637`) plus standard MIB-II — with a
+Zabbix **7.0** template and a portable Grafana dashboard.
 
-## Alvo
+## Target
 
-| Campo | Valor |
-|---|---|
-| Hardware | Nokia 7360 ISAM FX |
-| Firmware alvo | R6.2.04 |
-| Protocolo | SNMP v2c |
+| Field         | Value              |
+| ------------- | ------------------ |
+| Hardware      | Nokia 7360 ISAM FX |
+| Firmware      | R6.2.04            |
+| Protocol      | SNMP v2c           |
+| Zabbix        | 7.0 LTS            |
 
-## O que é monitorado
+## What is monitored
 
-### Itens estáticos (coletados após vincular o template)
+### Static items (collected once the template is linked)
 
-| Métrica | Detalhes |
-|---|---|
-| **Uptime de gerência** | `snmpEngineTime` — tempo do plano de gerência/SNMP da NT. Detecta reboot e restart de gerência. |
-| **Versão de firmware** | Extraída do `sysDescr` (MIB-II). Alerta INFO quando muda — possível upgrade ou downgrade. |
-| **Modo do FAN do chassis** | default / eco / protect / classic. Alerta INFO se sair do modo PROTECT. |
-| **Ópticos dos transceivers XFP** | NTAXFP-1 a NTAXFP-4: RX/TX power (dBm), temperatura (°C), tensão (V), corrente de bias (mA), LOS, TX fault, status DDM e flags de limiar da própria OLT. |
+| Metric                     | Details                                                                                                                              |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| **Management uptime**      | `snmpEngineTime` — management/SNMP plane uptime of the NT. Detects reboot and management restart.                                     |
+| **Firmware version**       | Extracted from `sysDescr` (MIB-II). INFO alert when it changes — possible upgrade or downgrade.                                       |
+| **Chassis FAN mode**       | default / eco / protect / classic. INFO alert when it differs from `{$FAN.MODE.EXPECTED}`.                                            |
+| **XFP transceiver optics** | NTAXFP-1..4: RX/TX power (dBm), temperature (°C), voltage (V), bias current (mA), LOS, TX fault, DDM status and OLT threshold flags. |
 
-### Descoberta automática — LLD
+### Low-Level Discovery (LLD)
 
-| Regra | O que descobre | Pré-requisito na OLT |
-|---|---|---|
-| **Portas PON** | Utilização DS/US (%), ONTs com tráfego, frames descartados RX, banda estimada DS/US (bps). Filtra PONs sem ONTs ativas. | `SET-PMMODE-PONUTIL` por porta (TL1) |
-| **Temperatura por placa** | Temperatura atual (°C), limiares TCA (alarme) alto/baixo e shutdown alto/baixo para NT-A, NT-B e placas LT. | Nenhum |
-| **Memória por placa** | Memória total e usada (bytes) para NT-A, NT-B e placas LT. | Nenhum |
-| **CPU por placa** | Carga média de CPU (%), status do monitor e timestamp de início para NT-A, NT-B e placas LT. | `ED-CPULOAD::ALL::START` (TL1) |
+| Rule                    | Discovers                                                                                                            | OLT prerequisite                                             |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| **PON ports**           | Utilization DS/US (%), active ONTs, RX dropped frames, estimated DS/US bandwidth (bps). Filters PONs with no active ONTs. | `pon-pmcollect pm-enable` per port                          |
+| **Board temperature**   | Current temperature (°C), TCA (alarm) high/low and shutdown high/low thresholds for NT-A, NT-B and LT boards.       | None                                                        |
+| **Board memory**        | Total and used memory (bytes) for NT-A, NT-B and LT boards. Usage % is evaluated inline in the memory triggers.      | None                                                        |
+| **Board CPU**           | CPU load average (%) and monitor status for NT-A, NT-B and LT boards.                                                | `cpu-load <board> monitor start`                            |
 
-## Pré-requisitos
+## Prerequisites
 
-**No Zabbix:**
-- Zabbix 6.0 ou superior
-- Host configurado com interface SNMP (UDP 161, versão 2c) apontando para o IP de gerência da OLT
-- Macro `{$SNMP_COMMUNITY}` definida no host com a community correta
+**On Zabbix:**
 
-**Na OLT (via TL1):**
+- Zabbix 7.0 or newer
+- Host with an SNMP interface (UDP 161, v2c) pointing to the OLT management IP
+- `{$SNMP_COMMUNITY}` macro set on the host
 
-```
-# Habilitar contadores PON por porta (exemplo: slot 1, porta 1):
-SET-PMMODE-PONUTIL::PONUTIL-1-1-1-1::::PMSTATE=PMENABLED;
+**On the OLT (CLI):** see [`zabbix/README.md`](zabbix/README.md) for the exact
+`cpu-load ... monitor start` and `pon ... pm-enable` commands.
 
-# Habilitar monitor de CPU para todas as placas:
-ED-CPULOAD::ALL::START;
-```
-
-Consulte [`zabbix/README.md`](zabbix/README.md) para instruções detalhadas de importação, macros e
-verificação via `snmpwalk`.
-
-## Estrutura de pastas
+## Repository layout
 
 ```
 nokia-isam-7360-monitoring/
@@ -59,25 +52,30 @@ nokia-isam-7360-monitoring/
 ├── LICENSE
 ├── .gitignore
 ├── zabbix/
-│   ├── nokia_isam_7360_unico.yaml   # Template Zabbix 6.0
-│   └── README.md                    # Importação, macros, pré-requisitos TL1, tags
+│   ├── nokia_isam_7360.yaml     # Zabbix 7.0 template
+│   └── README.md                # Import, macros, CLI prerequisites, tags
 └── grafana/
-    ├── dashboards/                  # Dashboards JSON (em breve)
+    ├── dashboards/
+    │   └── nokia-isam-7360.json # Portable dashboard (${DS_ZABBIX} input)
     ├── provisioning/
-    │   ├── datasources/             # datasource YAML
-    │   └── dashboards/              # provisioning YAML
-    └── README.md                    # Arquitetura e instruções de provisionamento
+    │   ├── datasources/zabbix.yml
+    │   └── dashboards/nokia.yml
+    └── README.md
 ```
 
 ## Roadmap
 
-- [x] Template Zabbix 6.0 para Nokia 7360 ISAM FX (PON, XFP, temperatura, memória, CPU, sistema)
-- [ ] Dashboard Grafana (plugin Zabbix — Alexander Zobnin) em `grafana/`
-  - Painel de utilização PON (DS/US %, ONTs ativas, frames descartados)
-  - Painel de ópticos XFP (RX/TX power, temperatura, LOS)
-  - Painel de saúde do sistema (CPU, memória, temperatura por placa)
-  - Painel de resumo geral (uptime, firmware, modo do FAN)
+- [x] Zabbix 7.0 template for Nokia 7360 ISAM FX (PON, XFP, temperature, memory, CPU, system)
+- [x] Grafana dashboard (Zabbix plugin — Alexander Zobnin), with OLT selector
+  * System health overview (uptime, firmware, FAN, CPU, memory %, temperature)
+  * PON utilization and traffic (DS/US %, bandwidth, active ONTs, dropped frames)
+  * Uplink XFP optics (RX/TX power, temperature, LOS)
+- [ ] PON port status (UP/DOWN)
+- [ ] XFP / VLAN traffic counters
+- [ ] Provisioned-ONU inventory per port (with near-limit macro)
+- [ ] LOS / DYING-GASP counters (evaluate SNMP trap vs. polling)
+- [ ] Out-of-band (FUI4) Ethernet port status
 
-## Licença
+## License
 
-MIT — veja [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE).

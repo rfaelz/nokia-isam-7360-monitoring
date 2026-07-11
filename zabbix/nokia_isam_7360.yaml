@@ -1,0 +1,1522 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+  - uuid: 2560f307c7934bc887c15d766d67f5f5
+    name: Templates/Nokia ISAM
+  templates:
+  - uuid: 7527b84819be4a2eaf98aa816fc3cfdf
+    template: Nokia ISAM 7360
+    name: Nokia ISAM 7360
+    description: 'Full monitoring of the Nokia 7360 ISAM FX (OLT level) in a single template:
+
+      per-PON utilization/traffic, uplink XFP optics, temperature and memory of all
+
+      boards (LLD), management-plane uptime and per-board CPU (LLD). Link this template
+
+      to the host (SNMP interface + {$SNMP_COMMUNITY} macro). OLT prerequisites:
+
+      pon-pmcollect pm-enable (PONs) and cpu-load monitor start (CPU).
+
+      '
+    groups:
+    - name: Templates/Nokia ISAM
+    items:
+    - uuid: 41e08adaf5fd4520ab1ec7aae2f8ae40
+      name: Chassis FAN mode
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.23.1.9.0
+      key: nokia.isam.fanmode
+      delay: 1h
+      history: 90d
+      trends: '0'
+      description: Chassis FAN operating mode (0=default, 1=eco, 2=protect, 3=classic).
+      valuemap:
+        name: Nokia fan mode
+      tags:
+      - tag: component
+        value: System
+      triggers:
+      - uuid: 824db92eb6704cc49b3027d86a64dd43
+        expression: last(/Nokia ISAM 7360/nokia.isam.fanmode)<>{$FAN.MODE.EXPECTED}
+        name: 'Chassis FAN mode outside expected (current: {{ITEM.LASTVALUE1}})'
+        priority: INFO
+        description: The chassis FAN mode left the expected mode ({$FAN.MODE.EXPECTED}). Change is manual; verify it was intentional and close the problem.
+        manual_close: 'YES'
+    - uuid: 4e278b449c1d4f358f84b335f24dd0aa
+      name: Firmware version
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.2.1.1.1.0
+      key: nokia.isam.firmware
+      delay: 1h
+      history: 30d
+      value_type: CHAR
+      trends: '0'
+      description: Firmware version extracted from sysDescr (first token, e.g. R6.2.04sj).
+      preprocessing:
+      - type: REGEX
+        parameters:
+        - ^(\S+)
+        - \1
+      - type: DISCARD_UNCHANGED_HEARTBEAT
+        parameters:
+        - 1d
+      tags:
+      - tag: component
+        value: System
+      triggers:
+      - uuid: 972c428137924242b80954ac35fceb62
+        expression: change(/Nokia ISAM 7360/nokia.isam.firmware)<>0
+        name: Firmware version changed (was {{ITEM.LASTVALUE1}})
+        priority: INFO
+        description: The OLT firmware version changed from the previous reading. May indicate an upgrade/downgrade. Acknowledge and close after validating.
+        manual_close: 'YES'
+    - uuid: 05c69e1650f644d8970891704437c8a5
+      name: 'NTAXFP-1: Bias threshold'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.13.4353.257
+      key: nokia.isam.sfp.biasth[4353.257]
+      delay: 5m
+      history: 90d
+      description: OLT flag for bias current (2 = NORMAL_VALUE / in range).
+      valuemap:
+        name: Nokia SFP threshold
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-1
+    - uuid: 41563689bcd44359bf64df74b48e1d09
+      name: 'NTAXFP-2: Bias threshold'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.13.4353.258
+      key: nokia.isam.sfp.biasth[4353.258]
+      delay: 5m
+      history: 90d
+      description: OLT flag for bias current (2 = NORMAL_VALUE / in range).
+      valuemap:
+        name: Nokia SFP threshold
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-2
+    - uuid: 259f0b75b01e4088975c4c1b21789796
+      name: 'NTAXFP-3: Bias threshold'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.13.4353.259
+      key: nokia.isam.sfp.biasth[4353.259]
+      delay: 5m
+      history: 90d
+      description: OLT flag for bias current (2 = NORMAL_VALUE / in range).
+      valuemap:
+        name: Nokia SFP threshold
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-3
+    - uuid: 7c3c0d8bbf334a298862c02385fc0ba2
+      name: 'NTAXFP-4: Bias threshold'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.13.4353.260
+      key: nokia.isam.sfp.biasth[4353.260]
+      delay: 5m
+      history: 90d
+      description: OLT flag for bias current (2 = NORMAL_VALUE / in range).
+      valuemap:
+        name: Nokia SFP threshold
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-4
+    - uuid: ddf0479b32194d4cae8acbd5dd6b6ce2
+      name: 'NTAXFP-1: Bias current'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.8.4353.257
+      key: nokia.isam.sfp.bias[4353.257]
+      delay: 5m
+      history: 90d
+      value_type: FLOAT
+      trends: 730d
+      units: mA
+      description: TXBIASCURRENT - laser bias current (mA).
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - var n=parseFloat(value);return isNaN(n)?null:n;
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-1
+    - uuid: 31926015ecd54d1d986422e8b8d9c99f
+      name: 'NTAXFP-2: Bias current'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.8.4353.258
+      key: nokia.isam.sfp.bias[4353.258]
+      delay: 5m
+      history: 90d
+      value_type: FLOAT
+      trends: 730d
+      units: mA
+      description: TXBIASCURRENT - laser bias current (mA).
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - var n=parseFloat(value);return isNaN(n)?null:n;
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-2
+    - uuid: 6cc42a2215da43b9ac42df2e9ab13266
+      name: 'NTAXFP-3: Bias current'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.8.4353.259
+      key: nokia.isam.sfp.bias[4353.259]
+      delay: 5m
+      history: 90d
+      value_type: FLOAT
+      trends: 730d
+      units: mA
+      description: TXBIASCURRENT - laser bias current (mA).
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - var n=parseFloat(value);return isNaN(n)?null:n;
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-3
+    - uuid: 9f4461f5ae5247dd9a3252eacd091a38
+      name: 'NTAXFP-4: Bias current'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.8.4353.260
+      key: nokia.isam.sfp.bias[4353.260]
+      delay: 5m
+      history: 90d
+      value_type: FLOAT
+      trends: 730d
+      units: mA
+      description: TXBIASCURRENT - laser bias current (mA).
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - var n=parseFloat(value);return isNaN(n)?null:n;
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-4
+    - uuid: 4f506af44e244a968703fa1167d88622
+      name: 'NTAXFP-1: Diag status'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.3.4353.257
+      key: nokia.isam.sfp.diagavail[4353.257]
+      delay: 5m
+      history: 90d
+      description: DIAGAVAILSTATUS - DDM diagnostics availability (1 = no error).
+      valuemap:
+        name: Nokia SFP diag status
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-1
+    - uuid: a5672390f69a4a68ab7417a3cc556edb
+      name: 'NTAXFP-2: Diag status'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.3.4353.258
+      key: nokia.isam.sfp.diagavail[4353.258]
+      delay: 5m
+      history: 90d
+      description: DIAGAVAILSTATUS - DDM diagnostics availability (1 = no error).
+      valuemap:
+        name: Nokia SFP diag status
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-2
+    - uuid: b6f2ae09525c459783a5a7f55fce63d6
+      name: 'NTAXFP-3: Diag status'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.3.4353.259
+      key: nokia.isam.sfp.diagavail[4353.259]
+      delay: 5m
+      history: 90d
+      description: DIAGAVAILSTATUS - DDM diagnostics availability (1 = no error).
+      valuemap:
+        name: Nokia SFP diag status
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-3
+    - uuid: 7fdc19cd968a4d96a5a24603128e6789
+      name: 'NTAXFP-4: Diag status'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.3.4353.260
+      key: nokia.isam.sfp.diagavail[4353.260]
+      delay: 5m
+      history: 90d
+      description: DIAGAVAILSTATUS - DDM diagnostics availability (1 = no error).
+      valuemap:
+        name: Nokia SFP diag status
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-4
+    - uuid: d4b547203b3740bfbaa44e4f06517f78
+      name: 'NTAXFP-1: LOS'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.4.4353.257
+      key: nokia.isam.sfp.los[4353.257]
+      delay: 5m
+      history: 90d
+      description: LOS - loss of optical signal (0 = ok / no-los, 1 = LOS).
+      valuemap:
+        name: Nokia SFP LOS
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - 'return value.indexOf(''no-los'') >= 0 ? 0 : 1;'
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-1
+    - uuid: bc6194def54144a8a0cf88f4650448ef
+      name: 'NTAXFP-2: LOS'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.4.4353.258
+      key: nokia.isam.sfp.los[4353.258]
+      delay: 5m
+      history: 90d
+      description: LOS - loss of optical signal (0 = ok / no-los, 1 = LOS).
+      valuemap:
+        name: Nokia SFP LOS
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - 'return value.indexOf(''no-los'') >= 0 ? 0 : 1;'
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-2
+    - uuid: 66965a2a185d46d890572a663e0d860d
+      name: 'NTAXFP-3: LOS'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.4.4353.259
+      key: nokia.isam.sfp.los[4353.259]
+      delay: 5m
+      history: 90d
+      description: LOS - loss of optical signal (0 = ok / no-los, 1 = LOS).
+      valuemap:
+        name: Nokia SFP LOS
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - 'return value.indexOf(''no-los'') >= 0 ? 0 : 1;'
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-3
+    - uuid: 30773e8b66e74734bd220faefe4da036
+      name: 'NTAXFP-4: LOS'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.4.4353.260
+      key: nokia.isam.sfp.los[4353.260]
+      delay: 5m
+      history: 90d
+      description: LOS - loss of optical signal (0 = ok / no-los, 1 = LOS).
+      valuemap:
+        name: Nokia SFP LOS
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - 'return value.indexOf(''no-los'') >= 0 ? 0 : 1;'
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-4
+    - uuid: e5f9bea1efe043bfadabcd9c9784256e
+      name: 'NTAXFP-1: RX power threshold'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.15.4353.257
+      key: nokia.isam.sfp.rxpowerth[4353.257]
+      delay: 5m
+      history: 90d
+      description: OLT flag for RX power (2 = NORMAL_VALUE / in range).
+      valuemap:
+        name: Nokia SFP threshold
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-1
+    - uuid: 060d44ff92be41e09345d0b1270b5816
+      name: 'NTAXFP-2: RX power threshold'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.15.4353.258
+      key: nokia.isam.sfp.rxpowerth[4353.258]
+      delay: 5m
+      history: 90d
+      description: OLT flag for RX power (2 = NORMAL_VALUE / in range).
+      valuemap:
+        name: Nokia SFP threshold
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-2
+    - uuid: f393cad464154af4aca75a81e4cef2c9
+      name: 'NTAXFP-3: RX power threshold'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.15.4353.259
+      key: nokia.isam.sfp.rxpowerth[4353.259]
+      delay: 5m
+      history: 90d
+      description: OLT flag for RX power (2 = NORMAL_VALUE / in range).
+      valuemap:
+        name: Nokia SFP threshold
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-3
+    - uuid: 14c89c0d26fd47f2bc2bad4db5ec1f4f
+      name: 'NTAXFP-4: RX power threshold'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.15.4353.260
+      key: nokia.isam.sfp.rxpowerth[4353.260]
+      delay: 5m
+      history: 90d
+      description: OLT flag for RX power (2 = NORMAL_VALUE / in range).
+      valuemap:
+        name: Nokia SFP threshold
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-4
+    - uuid: 82f2edf8c0ed4b05bed0718f0eece3ca
+      name: 'NTAXFP-1: RX power'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.7.4353.257
+      key: nokia.isam.sfp.rxpower[4353.257]
+      delay: 5m
+      history: 90d
+      value_type: FLOAT
+      trends: 730d
+      units: dBm
+      description: RXPOWER - optical power received by the transceiver (dBm).
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - var n=parseFloat(value);return isNaN(n)?null:n;
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-1
+    - uuid: b347c2621c7a454988debd67e11f8660
+      name: 'NTAXFP-2: RX power'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.7.4353.258
+      key: nokia.isam.sfp.rxpower[4353.258]
+      delay: 5m
+      history: 90d
+      value_type: FLOAT
+      trends: 730d
+      units: dBm
+      description: RXPOWER - optical power received by the transceiver (dBm).
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - var n=parseFloat(value);return isNaN(n)?null:n;
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-2
+    - uuid: 52cff7ca7ab14f6fa0987bd6ab58aa2f
+      name: 'NTAXFP-3: RX power'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.7.4353.259
+      key: nokia.isam.sfp.rxpower[4353.259]
+      delay: 5m
+      history: 90d
+      value_type: FLOAT
+      trends: 730d
+      units: dBm
+      description: RXPOWER - optical power received by the transceiver (dBm).
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - var n=parseFloat(value);return isNaN(n)?null:n;
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-3
+    - uuid: 05e59d78b1934a1e8b46df9f48f759fe
+      name: 'NTAXFP-4: RX power'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.7.4353.260
+      key: nokia.isam.sfp.rxpower[4353.260]
+      delay: 5m
+      history: 90d
+      value_type: FLOAT
+      trends: 730d
+      units: dBm
+      description: RXPOWER - optical power received by the transceiver (dBm).
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - var n=parseFloat(value);return isNaN(n)?null:n;
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-4
+    - uuid: 53c94403da714cf98a26b3c5d488c41b
+      name: 'NTAXFP-1: Temperature threshold'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.11.4353.257
+      key: nokia.isam.sfp.tempth[4353.257]
+      delay: 5m
+      history: 90d
+      description: OLT flag for transceiver temperature (2 = NORMAL_VALUE / in range).
+      valuemap:
+        name: Nokia SFP threshold
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-1
+    - uuid: 502c87e90e1b4290b1f2322b660c0cf7
+      name: 'NTAXFP-2: Temperature threshold'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.11.4353.258
+      key: nokia.isam.sfp.tempth[4353.258]
+      delay: 5m
+      history: 90d
+      description: OLT flag for transceiver temperature (2 = NORMAL_VALUE / in range).
+      valuemap:
+        name: Nokia SFP threshold
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-2
+    - uuid: cdffb47a2f984888a54be81abc6120ba
+      name: 'NTAXFP-3: Temperature threshold'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.11.4353.259
+      key: nokia.isam.sfp.tempth[4353.259]
+      delay: 5m
+      history: 90d
+      description: OLT flag for transceiver temperature (2 = NORMAL_VALUE / in range).
+      valuemap:
+        name: Nokia SFP threshold
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-3
+    - uuid: 2f9d68e941474089b2312bc602da7bc6
+      name: 'NTAXFP-4: Temperature threshold'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.11.4353.260
+      key: nokia.isam.sfp.tempth[4353.260]
+      delay: 5m
+      history: 90d
+      description: OLT flag for transceiver temperature (2 = NORMAL_VALUE / in range).
+      valuemap:
+        name: Nokia SFP threshold
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-4
+    - uuid: 1622694bfa0a4a50a0fefc7dcd8486ef
+      name: 'NTAXFP-1: Temperature'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.10.4353.257
+      key: nokia.isam.sfp.temp[4353.257]
+      delay: 5m
+      history: 90d
+      value_type: FLOAT
+      trends: 730d
+      units: C
+      description: TRXTEMP - transceiver temperature (degrees Celsius).
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - var n=parseFloat(value);return isNaN(n)?null:n;
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-1
+    - uuid: 95bf5a09a18f41c2aa4bf3d1354015cb
+      name: 'NTAXFP-2: Temperature'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.10.4353.258
+      key: nokia.isam.sfp.temp[4353.258]
+      delay: 5m
+      history: 90d
+      value_type: FLOAT
+      trends: 730d
+      units: C
+      description: TRXTEMP - transceiver temperature (degrees Celsius).
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - var n=parseFloat(value);return isNaN(n)?null:n;
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-2
+    - uuid: c7878c0ccf014dee9f5a098924e516a2
+      name: 'NTAXFP-3: Temperature'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.10.4353.259
+      key: nokia.isam.sfp.temp[4353.259]
+      delay: 5m
+      history: 90d
+      value_type: FLOAT
+      trends: 730d
+      units: C
+      description: TRXTEMP - transceiver temperature (degrees Celsius).
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - var n=parseFloat(value);return isNaN(n)?null:n;
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-3
+    - uuid: cc9a991b331847f5ba4006561ee997ae
+      name: 'NTAXFP-4: Temperature'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.10.4353.260
+      key: nokia.isam.sfp.temp[4353.260]
+      delay: 5m
+      history: 90d
+      value_type: FLOAT
+      trends: 730d
+      units: C
+      description: TRXTEMP - transceiver temperature (degrees Celsius).
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - var n=parseFloat(value);return isNaN(n)?null:n;
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-4
+    - uuid: 4220aefeacf5467aa8fd103c41903d13
+      name: 'NTAXFP-1: TX fault'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.5.4353.257
+      key: nokia.isam.sfp.txfault[4353.257]
+      delay: 5m
+      history: 90d
+      description: TXFAULT - transmit fault (2 = no fault).
+      valuemap:
+        name: Nokia SFP TX fault
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-1
+    - uuid: d369f14d6bec40d081c1d929dded1e37
+      name: 'NTAXFP-2: TX fault'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.5.4353.258
+      key: nokia.isam.sfp.txfault[4353.258]
+      delay: 5m
+      history: 90d
+      description: TXFAULT - transmit fault (2 = no fault).
+      valuemap:
+        name: Nokia SFP TX fault
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-2
+    - uuid: 6fcb7dea4c3345d89d600956370fe39a
+      name: 'NTAXFP-3: TX fault'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.5.4353.259
+      key: nokia.isam.sfp.txfault[4353.259]
+      delay: 5m
+      history: 90d
+      description: TXFAULT - transmit fault (2 = no fault).
+      valuemap:
+        name: Nokia SFP TX fault
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-3
+    - uuid: 7733dab8c2854133a8ebaee33310d4e1
+      name: 'NTAXFP-4: TX fault'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.5.4353.260
+      key: nokia.isam.sfp.txfault[4353.260]
+      delay: 5m
+      history: 90d
+      description: TXFAULT - transmit fault (2 = no fault).
+      valuemap:
+        name: Nokia SFP TX fault
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-4
+    - uuid: b9ccb8f0e48049738db1c91224223a3e
+      name: 'NTAXFP-1: TX power threshold'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.14.4353.257
+      key: nokia.isam.sfp.txpowerth[4353.257]
+      delay: 5m
+      history: 90d
+      description: OLT flag for TX power (2 = NORMAL_VALUE / in range).
+      valuemap:
+        name: Nokia SFP threshold
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-1
+    - uuid: 7b76e810bd3d442484f19485955d3e9b
+      name: 'NTAXFP-2: TX power threshold'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.14.4353.258
+      key: nokia.isam.sfp.txpowerth[4353.258]
+      delay: 5m
+      history: 90d
+      description: OLT flag for TX power (2 = NORMAL_VALUE / in range).
+      valuemap:
+        name: Nokia SFP threshold
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-2
+    - uuid: d00eebcf9485420380d8ceb65a721fab
+      name: 'NTAXFP-3: TX power threshold'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.14.4353.259
+      key: nokia.isam.sfp.txpowerth[4353.259]
+      delay: 5m
+      history: 90d
+      description: OLT flag for TX power (2 = NORMAL_VALUE / in range).
+      valuemap:
+        name: Nokia SFP threshold
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-3
+    - uuid: 3039d3fd701347afb6e64127bd1a8417
+      name: 'NTAXFP-4: TX power threshold'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.14.4353.260
+      key: nokia.isam.sfp.txpowerth[4353.260]
+      delay: 5m
+      history: 90d
+      description: OLT flag for TX power (2 = NORMAL_VALUE / in range).
+      valuemap:
+        name: Nokia SFP threshold
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-4
+    - uuid: 17586e1482234680ab768d84bdef4c42
+      name: 'NTAXFP-1: TX power'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.6.4353.257
+      key: nokia.isam.sfp.txpower[4353.257]
+      delay: 5m
+      history: 90d
+      value_type: FLOAT
+      trends: 730d
+      units: dBm
+      description: TXPOWER - optical power transmitted by the transceiver (dBm).
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - var n=parseFloat(value);return isNaN(n)?null:n;
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-1
+    - uuid: 638cba1e7cfc4e60b6956b4c80ef3a22
+      name: 'NTAXFP-2: TX power'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.6.4353.258
+      key: nokia.isam.sfp.txpower[4353.258]
+      delay: 5m
+      history: 90d
+      value_type: FLOAT
+      trends: 730d
+      units: dBm
+      description: TXPOWER - optical power transmitted by the transceiver (dBm).
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - var n=parseFloat(value);return isNaN(n)?null:n;
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-2
+    - uuid: 3edb657fc27a4d2baeb9b6d2f8054112
+      name: 'NTAXFP-3: TX power'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.6.4353.259
+      key: nokia.isam.sfp.txpower[4353.259]
+      delay: 5m
+      history: 90d
+      value_type: FLOAT
+      trends: 730d
+      units: dBm
+      description: TXPOWER - optical power transmitted by the transceiver (dBm).
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - var n=parseFloat(value);return isNaN(n)?null:n;
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-3
+    - uuid: 963b99caa2e94aee843ca35f5e718d20
+      name: 'NTAXFP-4: TX power'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.6.4353.260
+      key: nokia.isam.sfp.txpower[4353.260]
+      delay: 5m
+      history: 90d
+      value_type: FLOAT
+      trends: 730d
+      units: dBm
+      description: TXPOWER - optical power transmitted by the transceiver (dBm).
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - var n=parseFloat(value);return isNaN(n)?null:n;
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-4
+    - uuid: e261f17b15474bbbbca1880d68906a2d
+      name: 'NTAXFP-1: Supply voltage'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.9.4353.257
+      key: nokia.isam.sfp.voltage[4353.257]
+      delay: 5m
+      history: 90d
+      value_type: FLOAT
+      trends: 730d
+      units: V
+      description: TRXSUPVOLTAGE - transceiver supply voltage (V).
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - var n=parseFloat(value);return isNaN(n)?null:n;
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-1
+    - uuid: 33d796f5237f46d3aee67c44fc3f4bbb
+      name: 'NTAXFP-2: Supply voltage'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.9.4353.258
+      key: nokia.isam.sfp.voltage[4353.258]
+      delay: 5m
+      history: 90d
+      value_type: FLOAT
+      trends: 730d
+      units: V
+      description: TRXSUPVOLTAGE - transceiver supply voltage (V).
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - var n=parseFloat(value);return isNaN(n)?null:n;
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-2
+    - uuid: 3012955947824040bceb1feff5112f76
+      name: 'NTAXFP-3: Supply voltage'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.9.4353.259
+      key: nokia.isam.sfp.voltage[4353.259]
+      delay: 5m
+      history: 90d
+      value_type: FLOAT
+      trends: 730d
+      units: V
+      description: TRXSUPVOLTAGE - transceiver supply voltage (V).
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - var n=parseFloat(value);return isNaN(n)?null:n;
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-3
+    - uuid: 9440dee1242440cf88887ac9660b2e85
+      name: 'NTAXFP-4: Supply voltage'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.9.4353.260
+      key: nokia.isam.sfp.voltage[4353.260]
+      delay: 5m
+      history: 90d
+      value_type: FLOAT
+      trends: 730d
+      units: V
+      description: TRXSUPVOLTAGE - transceiver supply voltage (V).
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - var n=parseFloat(value);return isNaN(n)?null:n;
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-4
+    - uuid: b9eee445a9e54366a3afc2f0c607d713
+      name: 'NTAXFP-1: Voltage threshold'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.12.4353.257
+      key: nokia.isam.sfp.voltth[4353.257]
+      delay: 5m
+      history: 90d
+      description: OLT flag for transceiver voltage (2 = NORMAL_VALUE / in range).
+      valuemap:
+        name: Nokia SFP threshold
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-1
+    - uuid: cfdfac4ffb2b45cd91632a55679acb57
+      name: 'NTAXFP-2: Voltage threshold'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.12.4353.258
+      key: nokia.isam.sfp.voltth[4353.258]
+      delay: 5m
+      history: 90d
+      description: OLT flag for transceiver voltage (2 = NORMAL_VALUE / in range).
+      valuemap:
+        name: Nokia SFP threshold
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-2
+    - uuid: 284e450095cd4e04bd7f57c9360e8e4f
+      name: 'NTAXFP-3: Voltage threshold'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.12.4353.259
+      key: nokia.isam.sfp.voltth[4353.259]
+      delay: 5m
+      history: 90d
+      description: OLT flag for transceiver voltage (2 = NORMAL_VALUE / in range).
+      valuemap:
+        name: Nokia SFP threshold
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-3
+    - uuid: 2e0aec3eb5a14ac98fe1f1aff622b3da
+      name: 'NTAXFP-4: Voltage threshold'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.56.5.1.12.4353.260
+      key: nokia.isam.sfp.voltth[4353.260]
+      delay: 5m
+      history: 90d
+      description: OLT flag for transceiver voltage (2 = NORMAL_VALUE / in range).
+      valuemap:
+        name: Nokia SFP threshold
+      tags:
+      - tag: component
+        value: Optics
+      - tag: xfp
+        value: NTAXFP-4
+    - uuid: 4a4eb3a874d944c1b8fc4c05c116a133
+      name: Uptime (management plane / snmpEngineTime)
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.6.3.10.2.1.3.0
+      key: nokia.isam.uptime
+      delay: 5m
+      history: 90d
+      trends: 730d
+      units: uptime
+      description: snmpEngineTime, in seconds. Management/SNMP plane uptime of the NT (not the chassis uptime). Useful to detect reboot/management restart.
+      tags:
+      - tag: component
+        value: System
+      triggers:
+      - uuid: b503b4d42a9a444298446df693c3d6b4
+        expression: last(/Nokia ISAM 7360/nokia.isam.uptime)<10m
+        name: OLT rebooted or management restarted (uptime < 10 min)
+        priority: WARNING
+        manual_close: 'YES'
+    discovery_rules:
+    - uuid: 3b1ee791f64e4138aab6e75f940b5baf
+      name: Board temperature sensors
+      type: SNMP_AGENT
+      snmp_oid: discovery[{#ACTUAL},1.3.6.1.4.1.637.61.1.23.10.1.2]
+      key: nokia.isam.boardtemp.discovery
+      delay: 1h
+      lifetime: 30d
+      enabled_lifetime_type: DISABLE_NEVER
+      description: Discovers all temperature sensors (NT-A/NT-B and LT boards) via walk of table 637.*.23.10.
+      item_prototypes:
+      - uuid: 9b447fd05fde4f7084384fb6ff29a09f
+        name: Temperature {#BOARD} sensor {#SENSOR}
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.637.61.1.23.10.1.2.{#SNMPINDEX}
+        key: nokia.isam.boardtemp.actual[{#SNMPINDEX}]
+        delay: 5m
+        history: 90d
+        trends: 730d
+        units: C
+        description: ACTUAL_TEMPERATURE - current sensor temperature (degrees Celsius).
+        tags:
+        - tag: board
+          value: '{#BOARD}'
+        - tag: component
+          value: Temperature
+      - uuid: 2a1ece60f6f74357b77598d8f038523b
+        name: Shutdown high threshold {#BOARD} sensor {#SENSOR}
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.637.61.1.23.10.1.6.{#SNMPINDEX}
+        key: nokia.isam.boardtemp.shuthigh[{#SNMPINDEX}]
+        delay: 1h
+        history: 90d
+        trends: 730d
+        units: C
+        description: SHUTDOWNTHRESHOLDHIGH - temperature at which the board shuts down.
+        tags:
+        - tag: board
+          value: '{#BOARD}'
+        - tag: component
+          value: Temperature
+      - uuid: 62a8c4b0e7364e06a0d2b905b2319053
+        name: Shutdown low threshold (clear) {#BOARD} sensor {#SENSOR}
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.637.61.1.23.10.1.5.{#SNMPINDEX}
+        key: nokia.isam.boardtemp.shutlow[{#SNMPINDEX}]
+        delay: 1h
+        history: 90d
+        trends: 730d
+        units: C
+        description: SHUTDOWNTHRESHOLDLOW - temperature at which the shutdown alarm clears (hysteresis).
+        tags:
+        - tag: board
+          value: '{#BOARD}'
+        - tag: component
+          value: Temperature
+      - uuid: ddab5c9cf354440bab52f8122e1a9012
+        name: TCA high threshold {#BOARD} sensor {#SENSOR}
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.637.61.1.23.10.1.4.{#SNMPINDEX}
+        key: nokia.isam.boardtemp.tcahigh[{#SNMPINDEX}]
+        delay: 1h
+        history: 90d
+        trends: 730d
+        units: C
+        description: TCATHRESHOLDHIGH - temperature at which the OLT raises the TCA alarm.
+        tags:
+        - tag: board
+          value: '{#BOARD}'
+        - tag: component
+          value: Temperature
+      - uuid: 09241930f2954d30b91354adbcbef3e5
+        name: TCA low threshold (clear) {#BOARD} sensor {#SENSOR}
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.637.61.1.23.10.1.3.{#SNMPINDEX}
+        key: nokia.isam.boardtemp.tcalow[{#SNMPINDEX}]
+        delay: 1h
+        history: 90d
+        trends: 730d
+        units: C
+        description: TCATHRESHOLDLOW - temperature at which the TCA alarm clears (hysteresis).
+        tags:
+        - tag: board
+          value: '{#BOARD}'
+        - tag: component
+          value: Temperature
+      trigger_prototypes:
+      - uuid: 2fc9bdfa25464225b425e48a47559465
+        expression: last(/Nokia ISAM 7360/nokia.isam.boardtemp.actual[{#SNMPINDEX}])>=last(/Nokia ISAM 7360/nokia.isam.boardtemp.tcahigh[{#SNMPINDEX}])
+        recovery_mode: RECOVERY_EXPRESSION
+        recovery_expression: last(/Nokia ISAM 7360/nokia.isam.boardtemp.actual[{#SNMPINDEX}])<last(/Nokia ISAM 7360/nokia.isam.boardtemp.tcalow[{#SNMPINDEX}])
+        name: '{#BOARD} sensor {#SENSOR}: temperature at alarm level (TCA)'
+        priority: AVERAGE
+        manual_close: 'YES'
+      - uuid: a9014e4f3b7e466b9d70a5bb519a1071
+        expression: last(/Nokia ISAM 7360/nokia.isam.boardtemp.actual[{#SNMPINDEX}])>=last(/Nokia ISAM 7360/nokia.isam.boardtemp.shuthigh[{#SNMPINDEX}])
+        recovery_mode: RECOVERY_EXPRESSION
+        recovery_expression: last(/Nokia ISAM 7360/nokia.isam.boardtemp.actual[{#SNMPINDEX}])<last(/Nokia ISAM 7360/nokia.isam.boardtemp.shutlow[{#SNMPINDEX}])
+        name: '{#BOARD} sensor {#SENSOR}: temperature at SHUTDOWN level'
+        priority: DISASTER
+        manual_close: 'YES'
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - "try {\n  var d = JSON.parse(value);\n  var rows = Array.isArray(d) ? d : d.data;\n  rows.forEach(function(r){\n    var idx = String(r['{#SNMPINDEX}']);\n    var dot = idx.indexOf('.');\n    var board = parseInt(idx.substring(0, dot), 10);\n    r['{#SENSOR}'] = idx.substring(dot + 1);\n    r['{#BOARD}'] = board === 4353 ? 'NT-A'\n                  : board === 4354 ? 'NT-B'\n                  : 'LT-1-1-' + (board - 4354);\n  });\n  return JSON.stringify(Array.isArray(d) ? rows : {data: rows});\n} catch (e) { return value; }\n"
+    - uuid: 829a13f9deb24b5a9f8a936a857c2c88
+      name: CPU per board
+      type: SNMP_AGENT
+      snmp_oid: discovery[{#CPU},1.3.6.1.4.1.637.61.1.9.29.1.1.4]
+      key: nokia.isam.cpu.discovery
+      delay: 1h
+      lifetime: 30d
+      enabled_lifetime_type: DISABLE_NEVER
+      description: 'Discovers per-board CPU via table 637.*.9.29.1.
+
+        PREREQUISITE: start the monitor with "admin system cpu-load <board> monitor start".
+
+        Verify walk: snmpwalk -v2c -c <community> <ip> 1.3.6.1.4.1.637.61.1.9.29.1.1.4
+
+        '
+      item_prototypes:
+      - uuid: 227b9d3d552d4c808049d6a025855919
+        name: CPU load {#BOARD}
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.637.61.1.9.29.1.1.4.{#SNMPINDEX}
+        key: nokia.isam.cpu.avg[{#SNMPINDEX}]
+        delay: 5m
+        history: 90d
+        trends: 730d
+        units: '%'
+        description: CPULOADAVERAGE - board CPU load average since the monitor STARTTIME.
+        tags:
+        - tag: board
+          value: '{#BOARD}'
+        - tag: component
+          value: CPU
+        trigger_prototypes:
+        - uuid: 619dd4dcd72146e589a1dd9b2209c9ea
+          expression: min(/Nokia ISAM 7360/nokia.isam.cpu.avg[{#SNMPINDEX}],15m)>={$CPU.CRIT}
+          name: '{#BOARD}: CPU load above {$CPU.CRIT}%'
+          priority: HIGH
+          manual_close: 'YES'
+        - uuid: 5d91748e32ae4cc6966b4adbad127cfb
+          expression: min(/Nokia ISAM 7360/nokia.isam.cpu.avg[{#SNMPINDEX}],15m)>={$CPU.WARN}
+          name: '{#BOARD}: CPU load above {$CPU.WARN}%'
+          priority: WARNING
+          manual_close: 'YES'
+      - uuid: 9b5a1630ebd94dc29d3dbf9b3300c946
+        name: CPU monitor status {#BOARD}
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.637.61.1.9.29.1.1.5.{#SNMPINDEX}
+        key: nokia.isam.cpu.status[{#SNMPINDEX}]
+        delay: 5m
+        history: 90d
+        trends: 730d
+        description: OPERATESTATUS - CPU monitor state (3 = PROCEEDING). If != 3, the average may be stale.
+        valuemap:
+          name: Nokia CPU monitor status
+        tags:
+        - tag: board
+          value: '{#BOARD}'
+        - tag: component
+          value: CPU
+        trigger_prototypes:
+        - uuid: 6480af411ba1480fbb46bc9350f4d639
+          expression: last(/Nokia ISAM 7360/nokia.isam.cpu.status[{#SNMPINDEX}])<>3
+          name: '{#BOARD}: CPU monitor is not active (CPU value may be stale)'
+          priority: INFO
+          manual_close: 'YES'
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - "try {\n  var d = JSON.parse(value);\n  var rows = Array.isArray(d) ? d : d.data;\n  rows.forEach(function(r){\n    var b = parseInt(String(r['{#SNMPINDEX}']), 10);\n    r['{#BOARD}'] = b === 4353 ? 'NT-A'\n                  : b === 4354 ? 'NT-B'\n                  : 'LT-1-1-' + (b - 4354);\n  });\n  return JSON.stringify(Array.isArray(d) ? rows : {data: rows});\n} catch (e) { return value; }\n"
+    - uuid: ee29e14d86ba49119afeeb09cdaf7d8e
+      name: Boards (memory usage)
+      type: SNMP_AGENT
+      snmp_oid: discovery[{#TOTAL},1.3.6.1.4.1.637.61.1.9.29.2.1.1]
+      key: nokia.isam.mem.discovery
+      delay: 1h
+      lifetime: 30d
+      enabled_lifetime_type: DISABLE_NEVER
+      description: Discovers NT-A/NT-B and LT boards via table 637.*.9.29 (memory usage).
+      item_prototypes:
+      - uuid: 9893cf982eb241878bbc43cbea1d3bb2
+        name: Memory used {#BOARD}
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.637.61.1.9.29.2.1.2.{#SNMPINDEX}
+        key: nokia.isam.mem.abs[{#SNMPINDEX}]
+        delay: 5m
+        history: 90d
+        trends: 730d
+        units: B
+        description: MEMUSAGEABSOLUTE - board memory used (converted from MB to bytes).
+        preprocessing:
+        - type: MULTIPLIER
+          parameters:
+          - '1048576'
+        tags:
+        - tag: board
+          value: '{#BOARD}'
+        - tag: component
+          value: Memory
+      - uuid: ba3c7d21a08549b49ff5669d6ab1d1cf
+        name: Memory total {#BOARD}
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.637.61.1.9.29.2.1.1.{#SNMPINDEX}
+        key: nokia.isam.mem.total[{#SNMPINDEX}]
+        delay: 5m
+        history: 90d
+        trends: 730d
+        units: B
+        description: TOTALMEM - board total memory (converted from MB to bytes).
+        preprocessing:
+        - type: MULTIPLIER
+          parameters:
+          - '1048576'
+        tags:
+        - tag: board
+          value: '{#BOARD}'
+        - tag: component
+          value: Memory
+      trigger_prototypes:
+      - uuid: e41abc46426444c2ba91047ea1a681ec
+        expression: 100*last(/Nokia ISAM 7360/nokia.isam.mem.abs[{#SNMPINDEX}])/last(/Nokia ISAM 7360/nokia.isam.mem.total[{#SNMPINDEX}])>={$MEM.CRIT}
+        name: '{#BOARD}: memory usage above {$MEM.CRIT}%'
+        priority: HIGH
+        manual_close: 'YES'
+      - uuid: 22fc69d518494f6c89dc647034bfe244
+        expression: 100*last(/Nokia ISAM 7360/nokia.isam.mem.abs[{#SNMPINDEX}])/last(/Nokia ISAM 7360/nokia.isam.mem.total[{#SNMPINDEX}])>={$MEM.WARN}
+        name: '{#BOARD}: memory usage above {$MEM.WARN}%'
+        priority: WARNING
+        manual_close: 'YES'
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - "try {\n  var d = JSON.parse(value);\n  var rows = Array.isArray(d) ? d : d.data;\n  rows.forEach(function(r){\n    var b = parseInt(String(r['{#SNMPINDEX}']), 10);\n    r['{#BOARD}'] = b === 4353 ? 'NT-A'\n                  : b === 4354 ? 'NT-B'\n                  : 'LT-1-1-' + (b - 4354);\n  });\n  return JSON.stringify(Array.isArray(d) ? rows : {data: rows});\n} catch (e) { return value; }\n"
+    - uuid: 6e4e60eaa8b54957941af4b6b0946b13
+      name: PON ports (PONUTIL)
+      type: SNMP_AGENT
+      snmp_oid: discovery[{#ACTIVEONTS},1.3.6.1.4.1.637.61.1.35.21.57.1.16]
+      key: nokia.isam.pon.discovery
+      delay: 1h
+      filter:
+        evaltype: AND
+        conditions:
+        - macro: '{#ACTIVEONTS}'
+          value: ^[1-9][0-9]*$
+          formulaid: A
+      lifetime: 30d
+      enabled_lifetime_type: DISABLE_NEVER
+      description: 'Discovers PON ports from the PONUTIL table (walk of column .16).
+
+        PER-PORT PREREQUISITE: "configure pon interface 1/1/s/p utilization pon-pmcollect pm-enable".
+
+        Default filter: only creates PONs with >=1 active ONT (remove the filter for all).
+
+        '
+      item_prototypes:
+      - uuid: f28710787f2b493b8d14d1d62dfb8730
+        name: 'PON {#PON}: bandwidth downstream'
+        type: DEPENDENT
+        key: nokia.isam.pon.down.bps[{#SNMPINDEX}]
+        delay: '0'
+        history: 90d
+        value_type: FLOAT
+        trends: 730d
+        units: bps
+        description: Estimated downstream bandwidth = utilization(%) x line rate ({$PON.DOWN.BPS_PER_PCT}).
+        preprocessing:
+        - type: MULTIPLIER
+          parameters:
+          - '{$PON.DOWN.BPS_PER_PCT}'
+        master_item:
+          key: nokia.isam.pon.txtotutil[{#SNMPINDEX}]
+        tags:
+        - tag: component
+          value: PON
+        - tag: pon
+          value: '{#PON}'
+      - uuid: 49eb80ee7b5a4d32b1d09baeeae95a77
+        name: 'PON {#PON}: active ONTs'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.637.61.1.35.21.57.1.16.{#SNMPINDEX}
+        key: nokia.isam.pon.numactiveonts[{#SNMPINDEX}]
+        delay: 5m
+        history: 90d
+        trends: 730d
+        description: NUMACTIVEONTS - ONTs that passed traffic in the interval. Not an inventory count; fluctuates with traffic.
+        tags:
+        - tag: component
+          value: PON
+        - tag: pon
+          value: '{#PON}'
+        trigger_prototypes:
+        - uuid: f04230c10ce444b1ab98ee9dc04296ec
+          expression: max(/Nokia ISAM 7360/nokia.isam.pon.numactiveonts[{#SNMPINDEX}],{$PON.NOONT.TIME})=0
+          name: 'PON {#PON}: no active ONT for {$PON.NOONT.TIME} (possible port down)'
+          priority: WARNING
+          manual_close: 'YES'
+          description: No ONT passed traffic on this PON for the whole {$PON.NOONT.TIME} window. May indicate the port is down, or simply an idle PON at off-peak hours (NUMACTIVEONTS reflects traffic, not provisioned ONTs).
+      - uuid: fb93328e79ec47d786bf4c4ed2c862c0
+        name: 'PON {#PON}: RX dropped frames'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.637.61.1.35.21.57.1.28.{#SNMPINDEX}
+        key: nokia.isam.pon.rxtotdropfrm[{#SNMPINDEX}]
+        delay: 5m
+        history: 90d
+        trends: 730d
+        description: RXTOTDROPFRM - frames dropped on receive during the interval (accumulates in the 5-min bin).
+        preprocessing:
+        - type: JAVASCRIPT
+          parameters:
+          - var v=value;var c=v.indexOf(':');if(c>=0&&/[A-Za-z]/.test(v.substring(0,c)))v=v.substring(c+1);var h=v.replace(/[^0-9A-Fa-f]/g,'');return h.length?parseInt(h,16):0;
+        tags:
+        - tag: component
+          value: PON
+        - tag: pon
+          value: '{#PON}'
+        trigger_prototypes:
+        - uuid: 0257e7a3d41f44ca8cb80599f1428605
+          expression: last(/Nokia ISAM 7360/nokia.isam.pon.rxtotdropfrm[{#SNMPINDEX}])>{$PON.DROP.WARN}
+          name: 'PON {#PON}: RX dropped frames above {$PON.DROP.WARN}'
+          priority: AVERAGE
+          manual_close: 'YES'
+      - uuid: 99eaa1e73e1148f59eef18257ce3b70f
+        name: 'PON {#PON}: utilization upstream'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.637.61.1.35.21.57.1.7.{#SNMPINDEX}
+        key: nokia.isam.pon.rxtotutil[{#SNMPINDEX}]
+        delay: 5m
+        history: 90d
+        value_type: FLOAT
+        trends: 730d
+        units: '%'
+        description: RXTOTUTIL - total receive (upstream) utilization of the PON.
+        preprocessing:
+        - type: MULTIPLIER
+          parameters:
+          - '0.01'
+        tags:
+        - tag: component
+          value: PON
+        - tag: pon
+          value: '{#PON}'
+        trigger_prototypes:
+        - uuid: fd230e12f2084c62bab92c083f852dce
+          expression: min(/Nokia ISAM 7360/nokia.isam.pon.rxtotutil[{#SNMPINDEX}],15m)>{$PON.UTIL.WARN}
+          name: 'PON {#PON}: upstream utilization above {$PON.UTIL.WARN}%'
+          priority: WARNING
+          manual_close: 'YES'
+      - uuid: ccd52b391d824c63866570f283544d26
+        name: 'PON {#PON}: utilization downstream'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.637.61.1.35.21.57.1.6.{#SNMPINDEX}
+        key: nokia.isam.pon.txtotutil[{#SNMPINDEX}]
+        delay: 5m
+        history: 90d
+        value_type: FLOAT
+        trends: 730d
+        units: '%'
+        description: TXTOTUTIL - total transmit (downstream) utilization of the PON, computed by the OLT.
+        preprocessing:
+        - type: MULTIPLIER
+          parameters:
+          - '0.01'
+        tags:
+        - tag: component
+          value: PON
+        - tag: pon
+          value: '{#PON}'
+        trigger_prototypes:
+        - uuid: 8c7b180697f644ac8d220479e5d29d4a
+          expression: min(/Nokia ISAM 7360/nokia.isam.pon.txtotutil[{#SNMPINDEX}],15m)>{$PON.UTIL.WARN}
+          name: 'PON {#PON}: downstream utilization above {$PON.UTIL.WARN}%'
+          priority: WARNING
+          manual_close: 'YES'
+      - uuid: c10491390e364d2e94c3792e75b633e3
+        name: 'PON {#PON}: bandwidth upstream'
+        type: DEPENDENT
+        key: nokia.isam.pon.up.bps[{#SNMPINDEX}]
+        delay: '0'
+        history: 90d
+        value_type: FLOAT
+        trends: 730d
+        units: bps
+        description: Estimated upstream bandwidth = utilization(%) x line rate ({$PON.UP.BPS_PER_PCT}).
+        preprocessing:
+        - type: MULTIPLIER
+          parameters:
+          - '{$PON.UP.BPS_PER_PCT}'
+        master_item:
+          key: nokia.isam.pon.rxtotutil[{#SNMPINDEX}]
+        tags:
+        - tag: component
+          value: PON
+        - tag: pon
+          value: '{#PON}'
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - "try {\n  var d = JSON.parse(value);\n  var rows = Array.isArray(d) ? d : d.data;\n  rows.forEach(function(r){\n    var idx = parseInt(String(r['{#SNMPINDEX}']), 10);\n    var off = idx - 0x05A00000;\n    var slot = Math.floor(off / 0x02000000) + 1;\n    var rem = off % 0x02000000;\n    var port = Math.floor(rem / 0x10000) + 1;\n    r['{#PON}'] = '1/1/' + slot + '/' + port;\n  });\n  return JSON.stringify(Array.isArray(d) ? rows : {data: rows});\n} catch (e) { return value; }\n"
+    macros:
+    - macro: '{$CPU.CRIT}'
+      value: '90'
+      description: CPU threshold (%) for high alert.
+    - macro: '{$CPU.WARN}'
+      value: '80'
+      description: CPU threshold (%) for warning.
+    - macro: '{$FAN.MODE.EXPECTED}'
+      value: '2'
+      description: Expected chassis FAN mode (0=default,1=eco,2=protect,3=classic). Trigger fires when the actual mode differs.
+    - macro: '{$MEM.CRIT}'
+      value: '95'
+      description: Memory usage threshold (%) for high alert.
+    - macro: '{$MEM.WARN}'
+      value: '90'
+      description: Memory usage threshold (%) for warning.
+    - macro: '{$PON.DOWN.BPS_PER_PCT}'
+      value: '24883200'
+      description: bps per 1% downstream. GPON=24883200, XGS-PON=99532800.
+    - macro: '{$PON.DROP.WARN}'
+      value: '200'
+      description: Dropped-frames-per-interval threshold for alert.
+    - macro: '{$PON.NOONT.TIME}'
+      value: 1h
+      description: Sustained window with zero active ONTs before flagging a PON as possibly down. Beware quiet PONs at off-peak hours (NUMACTIVEONTS reflects traffic, not provisioned ONTs).
+    - macro: '{$PON.UP.BPS_PER_PCT}'
+      value: '12441600'
+      description: bps per 1% upstream. GPON=12441600, XGS-PON=99532800, XG-PON=24883200.
+    - macro: '{$PON.UTIL.WARN}'
+      value: '90'
+      description: Utilization threshold (%) for alert.
+    - macro: '{$SNMP_COMMUNITY}'
+      value: public
+      description: OLT SNMP v2c community.
+    valuemaps:
+    - uuid: c1a16a848e6b4db09e56f6115042a764
+      name: Nokia CPU monitor status
+      mappings:
+      - value: '3'
+        newvalue: PROCEEDING
+    - uuid: 3ae94283052e4e5983fe686c3455cc64
+      name: Nokia fan mode
+      mappings:
+      - value: '0'
+        newvalue: default
+      - value: '1'
+        newvalue: eco
+      - value: '2'
+        newvalue: protect
+      - value: '3'
+        newvalue: classic
+    - uuid: b16fc310c7d6470b8e680dc164e1e601
+      name: Nokia SFP diag status
+      mappings:
+      - value: '1'
+        newvalue: NO_ERROR
+    - uuid: 18f57331a996451ca30134b9bee850e9
+      name: Nokia SFP LOS
+      mappings:
+      - value: '0'
+        newvalue: no-los (OK)
+      - value: '1'
+        newvalue: LOS
+    - uuid: 612eba49a1c848d9bd2aadb7d91c614d
+      name: Nokia SFP threshold
+      mappings:
+      - value: '2'
+        newvalue: NORMAL_VALUE
+    - uuid: 0ba2be91ec6147df8a82f0a0d814ad9a
+      name: Nokia SFP TX fault
+      mappings:
+      - value: '2'
+        newvalue: NO_TX_FAULT
+  triggers:
+  - uuid: 7ce80e1941314e51ab46d5aa0fd0a029
+    expression: last(/Nokia ISAM 7360/nokia.isam.sfp.txfault[4353.257])<>2 and last(/Nokia ISAM 7360/nokia.isam.sfp.diagavail[4353.257])=1
+    name: 'NTAXFP-1: transmit fault (TX fault)'
+    priority: HIGH
+    manual_close: 'YES'
+  - uuid: f3576811062243799d741e30ec95279c
+    expression: (last(/Nokia ISAM 7360/nokia.isam.sfp.tempth[4353.257])<>2 or last(/Nokia ISAM 7360/nokia.isam.sfp.voltth[4353.257])<>2 or last(/Nokia ISAM 7360/nokia.isam.sfp.biasth[4353.257])<>2 or last(/Nokia ISAM 7360/nokia.isam.sfp.txpowerth[4353.257])<>2 or last(/Nokia ISAM 7360/nokia.isam.sfp.rxpowerth[4353.257])<>2) and last(/Nokia ISAM 7360/nokia.isam.sfp.diagavail[4353.257])=1
+    name: 'NTAXFP-1: optical parameter out of range (OLT flag)'
+    priority: AVERAGE
+    manual_close: 'YES'
+  - uuid: f0c0388a5ead4bb69b92fcb71589bee9
+    expression: last(/Nokia ISAM 7360/nokia.isam.sfp.los[4353.257])=1 and last(/Nokia ISAM 7360/nokia.isam.sfp.diagavail[4353.257])=1
+    name: 'NTAXFP-1: loss of optical signal (LOS)'
+    priority: HIGH
+    manual_close: 'YES'
+  - uuid: c8fec284ca0a4f1f9963cbe5edee9e1c
+    expression: last(/Nokia ISAM 7360/nokia.isam.sfp.txfault[4353.258])<>2 and last(/Nokia ISAM 7360/nokia.isam.sfp.diagavail[4353.258])=1
+    name: 'NTAXFP-2: transmit fault (TX fault)'
+    priority: HIGH
+    manual_close: 'YES'
+  - uuid: 1c94f2a1bad840139179ba7ae467ba5b
+    expression: (last(/Nokia ISAM 7360/nokia.isam.sfp.tempth[4353.258])<>2 or last(/Nokia ISAM 7360/nokia.isam.sfp.voltth[4353.258])<>2 or last(/Nokia ISAM 7360/nokia.isam.sfp.biasth[4353.258])<>2 or last(/Nokia ISAM 7360/nokia.isam.sfp.txpowerth[4353.258])<>2 or last(/Nokia ISAM 7360/nokia.isam.sfp.rxpowerth[4353.258])<>2) and last(/Nokia ISAM 7360/nokia.isam.sfp.diagavail[4353.258])=1
+    name: 'NTAXFP-2: optical parameter out of range (OLT flag)'
+    priority: AVERAGE
+    manual_close: 'YES'
+  - uuid: 676a5a500a704e5d88c0926ce61cd05a
+    expression: last(/Nokia ISAM 7360/nokia.isam.sfp.los[4353.258])=1 and last(/Nokia ISAM 7360/nokia.isam.sfp.diagavail[4353.258])=1
+    name: 'NTAXFP-2: loss of optical signal (LOS)'
+    priority: HIGH
+    manual_close: 'YES'
+  - uuid: 83094eb0fd7a4f899e3c9759cf2fdc17
+    expression: last(/Nokia ISAM 7360/nokia.isam.sfp.txfault[4353.259])<>2 and last(/Nokia ISAM 7360/nokia.isam.sfp.diagavail[4353.259])=1
+    name: 'NTAXFP-3: transmit fault (TX fault)'
+    priority: HIGH
+    manual_close: 'YES'
+  - uuid: fd206b300a1a45939b418824e235a793
+    expression: (last(/Nokia ISAM 7360/nokia.isam.sfp.tempth[4353.259])<>2 or last(/Nokia ISAM 7360/nokia.isam.sfp.voltth[4353.259])<>2 or last(/Nokia ISAM 7360/nokia.isam.sfp.biasth[4353.259])<>2 or last(/Nokia ISAM 7360/nokia.isam.sfp.txpowerth[4353.259])<>2 or last(/Nokia ISAM 7360/nokia.isam.sfp.rxpowerth[4353.259])<>2) and last(/Nokia ISAM 7360/nokia.isam.sfp.diagavail[4353.259])=1
+    name: 'NTAXFP-3: optical parameter out of range (OLT flag)'
+    priority: AVERAGE
+    manual_close: 'YES'
+  - uuid: 31ea47e0735b4c1285ce45bca2d84f78
+    expression: last(/Nokia ISAM 7360/nokia.isam.sfp.los[4353.259])=1 and last(/Nokia ISAM 7360/nokia.isam.sfp.diagavail[4353.259])=1
+    name: 'NTAXFP-3: loss of optical signal (LOS)'
+    priority: HIGH
+    manual_close: 'YES'
+  - uuid: f1369f865bf24b52919076c5821a35ba
+    expression: last(/Nokia ISAM 7360/nokia.isam.sfp.txfault[4353.260])<>2 and last(/Nokia ISAM 7360/nokia.isam.sfp.diagavail[4353.260])=1
+    name: 'NTAXFP-4: transmit fault (TX fault)'
+    priority: HIGH
+    manual_close: 'YES'
+  - uuid: b880bb7fee32499a9cfb7a7ecea673c5
+    expression: (last(/Nokia ISAM 7360/nokia.isam.sfp.tempth[4353.260])<>2 or last(/Nokia ISAM 7360/nokia.isam.sfp.voltth[4353.260])<>2 or last(/Nokia ISAM 7360/nokia.isam.sfp.biasth[4353.260])<>2 or last(/Nokia ISAM 7360/nokia.isam.sfp.txpowerth[4353.260])<>2 or last(/Nokia ISAM 7360/nokia.isam.sfp.rxpowerth[4353.260])<>2) and last(/Nokia ISAM 7360/nokia.isam.sfp.diagavail[4353.260])=1
+    name: 'NTAXFP-4: optical parameter out of range (OLT flag)'
+    priority: AVERAGE
+    manual_close: 'YES'
+  - uuid: f1449427002c42638c47e3f1bf9e553a
+    expression: last(/Nokia ISAM 7360/nokia.isam.sfp.los[4353.260])=1 and last(/Nokia ISAM 7360/nokia.isam.sfp.diagavail[4353.260])=1
+    name: 'NTAXFP-4: loss of optical signal (LOS)'
+    priority: HIGH
+    manual_close: 'YES'

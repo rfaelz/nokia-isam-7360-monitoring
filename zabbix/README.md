@@ -1,94 +1,95 @@
-# Template Zabbix — Nokia ISAM 7360 FX
+# Zabbix template — Nokia ISAM 7360 FX
 
-## Arquivo
+Zabbix **7.0** template (`nokia_isam_7360.yaml`) for the Nokia 7360 ISAM FX OLT over
+SNMP v2c. A single self-contained template: static items + four LLD rules
+(PON, board temperature, board memory, board CPU).
 
-`nokia_isam_7360_unico.yaml` — template único para Zabbix 6.0+.
+## Import
 
-## Como importar
+**Data collection → Templates → Import**, select `nokia_isam_7360.yaml`.
 
-1. Acesse **Data collection → Templates → Import**
-2. Selecione o arquivo `nokia_isam_7360_unico.yaml`
-3. **Primeira importação:** deixe as opções padrão e clique em **Import**
-4. **Reimportação (atualização):** marque **"Delete missing"** em todos os grupos (items,
-   triggers, graphs, discovery rules) para remover protótipos obsoletos da versão anterior
+When **re-importing** an updated version, enable **"Delete missing"** for *Items*,
+*Triggers* and *Discovery rules* so that removed objects are cleaned from the
+template (otherwise orphan items remain and LLD key collisions can occur).
 
-## Como vincular ao host
+Then, on the host:
 
-1. No Zabbix, abra o host da OLT
-2. Certifique-se de que há uma **interface SNMP** configurada (UDP 161, versão 2c)
-3. Na aba **Templates**, adicione `Nokia ISAM 7360`
-4. Defina a macro `{$SNMP_COMMUNITY}` no host com a community correta da OLT
+1. Add an **SNMP interface** (UDP 161, v2c) pointing to the OLT management IP.
+2. Set the `{$SNMP_COMMUNITY}` macro.
+3. Link the **Nokia ISAM 7360** template.
+
+## OLT prerequisites (CLI)
+
+Some proprietary counters only respond after their monitor/PM is enabled on the OLT.
+
+**Per-board CPU monitor** (required for the CPU LLD):
+
+```
+admin system cpu-load nt-a monitor start
+admin system cpu-load nt-b monitor start
+admin system cpu-load lt:1/1/1 monitor start
+admin system cpu-load lt:1/1/2 monitor start
+admin system cpu-load lt:1/1/3 monitor start
+admin system cpu-load lt:1/1/4 monitor start
+```
+
+**Per-PON utilization counters** (required for PON utilization/bandwidth/drops).
+A PON is *discovered* even without PM, but its utilization/bandwidth items stay
+without data until PM is enabled on that port:
+
+```
+configure pon interface 1/1/1/[1...16] utilization pon-pmcollect pm-enable
+configure pon interface 1/1/2/[1...16] utilization pon-pmcollect pm-enable
+configure pon interface 1/1/3/[1...16] utilization pon-pmcollect pm-enable
+configure pon interface 1/1/4/[1...16] utilization pon-pmcollect pm-enable
+```
 
 ## Macros
 
-| Macro | Padrão | Descrição |
-|---|---|---|
-| `{$SNMP_COMMUNITY}` | `public` | Community SNMP v2c da OLT |
-| `{$PON.UTIL.WARN}` | `90` | Limiar de utilização de PON (%) para alerta WARNING |
-| `{$PON.DROP.WARN}` | `200` | Limiar de frames descartados por intervalo de 5 min para AVERAGE |
-| `{$PON.DOWN.BPS_PER_PCT}` | `24883200` | bps por 1% downstream. Padrão GPON; use `99532800` para XGS-PON |
-| `{$PON.UP.BPS_PER_PCT}` | `12441600` | bps por 1% upstream. Padrão GPON; use `99532800` para XGS-PON/XG-PON |
-| `{$MEM.WARN}` | `90` | Limiar de uso de memória (%) para WARNING |
-| `{$MEM.CRIT}` | `95` | Limiar de uso de memória (%) para HIGH |
-| `{$CPU.WARN}` | `80` | Limiar de CPU (%) para WARNING |
-| `{$CPU.CRIT}` | `90` | Limiar de CPU (%) para HIGH |
+| Macro                     | Default    | Purpose                                                             |
+| ------------------------- | ---------- | ------------------------------------------------------------------- |
+| `{$SNMP_COMMUNITY}`       | `public`   | OLT SNMP v2c community.                                             |
+| `{$CPU.WARN}`             | `80`       | Per-board CPU warning threshold (%).                                |
+| `{$CPU.CRIT}`             | `90`       | Per-board CPU high threshold (%).                                   |
+| `{$MEM.WARN}`             | `90`       | Per-board memory usage warning (%). Evaluated inline (used/total).  |
+| `{$MEM.CRIT}`             | `95`       | Per-board memory usage high (%). Evaluated inline (used/total).     |
+| `{$PON.UTIL.WARN}`        | `90`       | PON DS/US utilization alert threshold (%).                          |
+| `{$PON.DROP.WARN}`        | `200`      | RX dropped frames per interval alert threshold.                     |
+| `{$PON.DOWN.BPS_PER_PCT}` | `24883200` | bps per 1% downstream (GPON). XGS-PON = 99532800.                   |
+| `{$PON.UP.BPS_PER_PCT}`   | `12441600` | bps per 1% upstream (GPON).                                         |
+| `{$PON.NOONT.TIME}`       | `1h`       | Sustained window with zero active ONTs before flagging a PON down.  |
+| `{$FAN.MODE.EXPECTED}`    | `2`        | Expected FAN mode (0=default,1=eco,2=protect,3=classic).            |
 
-Sobrescreva as macros no host para personalizar os limiares sem modificar o template.
+## Item tags
 
-## Pré-requisitos na OLT (TL1)
+Every item is tagged for filtering in *Latest data* and *Problems*:
 
-### Contadores de utilização PON
+- `component` — subsystem: `PON`, `Optics`, `Temperature`, `Memory`, `CPU`, `System`
+- `pon` — PON id (`1/1/x/x`) on PON items
+- `board` — board name (`NT-A`, `LT-1-1-x`) on temperature/memory/CPU items
+- `xfp` — cage (`NTAXFP-1..4`) on optics items
 
-Deve ser habilitado individualmente por porta. A descoberta LLD só retorna PONs com
-`PMSTATE=PMENABLED` e pelo menos uma ONT com tráfego ativo:
+## Notes / design decisions
+
+- **Memory usage %** is computed **inline in the memory triggers**
+  (`100*last(used)/last(total)`), because a Zabbix *calculated item* referencing
+  sibling LLD items does not resolve in this environment. For a **graph** of the
+  percentage, use the Grafana dashboard (it computes % client-side).
+- **Numeric-only OIDs** are used throughout (net-snmp on Debian disables MIB
+  loading by default, so symbolic OIDs would fail).
+- Empty XFP cages return non-numeric optical values; those items discard the
+  reading (JavaScript `return null`) so an empty cage produces no data and no
+  false alarm.
+
+## Verify via snmpwalk
 
 ```
-SET-PMMODE-PONUTIL::PONUTIL-1-1-<slot>-<porta>::::PMSTATE=PMENABLED;
-```
-
-Exemplo para as 4 portas do slot 1:
-
-```
-SET-PMMODE-PONUTIL::PONUTIL-1-1-1-1::::PMSTATE=PMENABLED;
-SET-PMMODE-PONUTIL::PONUTIL-1-1-1-2::::PMSTATE=PMENABLED;
-SET-PMMODE-PONUTIL::PONUTIL-1-1-1-3::::PMSTATE=PMENABLED;
-SET-PMMODE-PONUTIL::PONUTIL-1-1-1-4::::PMSTATE=PMENABLED;
-```
-
-Confirme que os contadores estão acessíveis via SNMP:
-
-```
+# PON utilization table (active ONTs column):
 snmpwalk -v2c -c <community> <ip> 1.3.6.1.4.1.637.61.1.35.21.57.1.16
-```
 
-### Monitor de CPU por placa
+# Board temperature table:
+snmpwalk -v2c -c <community> <ip> 1.3.6.1.4.1.637.61.1.23.10.1.2
 
-```
-ED-CPULOAD::ALL::START;
-```
-
-Confirme via SNMP:
-
-```
+# Board CPU load (after starting the monitor):
 snmpwalk -v2c -c <community> <ip> 1.3.6.1.4.1.637.61.1.9.29.1.1.4
 ```
-
-> O item **Status do monitor de CPU** coleta `OPERATESTATUS`. O valor `3 = PROCEEDING` indica
-> que o monitor está ativo. Qualquer outro valor gera um alerta INFO — a média de CPU pode
-> estar congelada no último valor coletado antes da parada do monitor.
-
-## Esquema de tags
-
-| Tag | Valor | Aplicação |
-|---|---|---|
-| `component` | `PON` | Itens de utilização e tráfego das portas PON |
-| `component` | `Optics` | Itens dos transceivers XFP (NTAXFP-1..4) |
-| `component` | `Temperature` | Protótipos de temperatura por placa (LLD) |
-| `component` | `Memory` | Protótipos de memória por placa (LLD) |
-| `component` | `CPU` | Protótipos de CPU por placa (LLD) |
-| `component` | `System` | Uptime, firmware e modo do FAN |
-| `pon` | ex. `1/1/1/1` | Identifica a porta PON no formato rack/frame/slot/porta |
-| `board` | ex. `NT-A`, `NT-B`, `LT-1-1-2` | Identifica a placa |
-| `xfp` | ex. `NTAXFP-1` | Identifica o transceiver de uplink |
-
-Use as tags para filtrar problemas no Zabbix e como labels em painéis Grafana.
