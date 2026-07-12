@@ -29,6 +29,7 @@ Three rows:
 | **Overview - System Health**    | Uptime, firmware version, chassis FAN mode, temperature per board, CPU load per board, memory usage % per board |
 | **PON - Utilization / Traffic** | DS/US utilization (%), DS/US bandwidth, active ONTs, RX dropped frames — per PON                 |
 | **Optics - Uplink (XFP)**       | RX/TX power, transceiver temperature, supply voltage, bias current, LOS — per cage              |
+| **PON - Port Status & Inventory** | Per-port oper status (state timeline), provisioned ONUs (sorted, colour-coded near the 128 limit), admin status |
 
 An **Equipment (OLT)** variable at the top switches between OLTs (a custom list of
 host names — edit it in Dashboard settings → Variables → `host`).

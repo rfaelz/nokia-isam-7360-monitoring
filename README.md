@@ -29,6 +29,7 @@ Zabbix **7.0** template and a portable Grafana dashboard.
 | Rule                    | Discovers                                                                                                            | OLT prerequisite                                             |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
 | **PON ports**           | Utilization DS/US (%), active ONTs, RX dropped frames, estimated DS/US bandwidth (bps). Filters PONs with no active ONTs. | `pon-pmcollect pm-enable` per port                          |
+| **PON port status & ONU inventory** | Per-port oper/admin status (IF-MIB) and provisioned-ONU count for **all** PON ports (including empty ones). Alerts on ports near the 128-ONU limit, and on a port down with 2+ ONUs (real fault). | None |
 | **Board temperature**   | Current temperature (°C), TCA (alarm) high/low and shutdown high/low thresholds for NT-A, NT-B and LT boards.       | None                                                        |
 | **Board memory**        | Total and used memory (bytes) for NT-A, NT-B and LT boards. Usage % is evaluated inline in the memory triggers.      | None                                                        |
 | **Board CPU**           | CPU load average (%) and monitor status for NT-A, NT-B and LT boards.                                                | `cpu-load <board> monitor start`                            |
@@ -70,9 +71,9 @@ nokia-isam-7360-monitoring/
   * System health overview (uptime, firmware, FAN, CPU, memory %, temperature)
   * PON utilization and traffic (DS/US %, bandwidth, active ONTs, dropped frames)
   * Uplink XFP optics (RX/TX power, temperature, LOS)
-- [ ] PON port status (UP/DOWN)
+- [x] PON port status (UP/DOWN)
 - [ ] XFP / VLAN traffic counters
-- [ ] Provisioned-ONU inventory per port (with near-limit macro)
+- [x] Provisioned-ONU inventory per port (with near-limit macro)
 - [ ] LOS / DYING-GASP counters (evaluate SNMP trap vs. polling)
 - [ ] Out-of-band (FUI4) Ethernet port status
 

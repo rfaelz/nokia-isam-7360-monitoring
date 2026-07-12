@@ -985,6 +985,30 @@ zabbix_export:
         name: OLT rebooted or management restarted (uptime < 10 min)
         priority: WARNING
         manual_close: 'YES'
+    - uuid: 00bf9c96af0a430ab0470e89f55bc7c0
+      name: Provisioned ONTs (bulk walk)
+      type: SNMP_AGENT
+      snmp_oid: walk[1.3.6.1.4.1.637.61.1.35.11.4.1.1]
+      key: nokia.isam.ont.walk
+      delay: 1h
+      history: 1h
+      trends: '0'
+      value_type: TEXT
+      description: 'Single SNMP walk of the provisioned-ONT table (.637...35.11.4.1.1), one row per
+
+        provisioned ONT indexed by <PON ifIndex>.<ONT id>. Master item; per-port counts are
+
+        derived from it as dependent items (one walk on the OLT, counting done in Zabbix).
+
+
+        INTERVAL = 1h on purpose: ONU inventory changes slowly, and on large OLTs (thousands
+
+        of ONTs) a frequent full-column walk stresses the ISAM control-plane CPU. Before
+
+        enabling on a big OLT, test GETBULK response and watch the NT CPU item during the walk.'
+      tags:
+      - tag: component
+        value: PON
     discovery_rules:
     - uuid: 3b1ee791f64e4138aab6e75f940b5baf
       name: Board temperature sensors
@@ -1386,6 +1410,99 @@ zabbix_export:
       - type: JAVASCRIPT
         parameters:
         - "try {\n  var d = JSON.parse(value);\n  var rows = Array.isArray(d) ? d : d.data;\n  rows.forEach(function(r){\n    var idx = parseInt(String(r['{#SNMPINDEX}']), 10);\n    var off = idx - 0x05A00000;\n    var slot = Math.floor(off / 0x02000000) + 1;\n    var rem = off % 0x02000000;\n    var port = Math.floor(rem / 0x10000) + 1;\n    r['{#PON}'] = '1/1/' + slot + '/' + port;\n  });\n  return JSON.stringify(Array.isArray(d) ? rows : {data: rows});\n} catch (e) { return value; }\n"
+    - uuid: dfea39b48bb545059dfa3f9522a32719
+      name: PON port status & ONU inventory
+      type: SNMP_AGENT
+      key: nokia.isam.ponstatus.discovery
+      snmp_oid: discovery[{#ACTIVEONTS},1.3.6.1.4.1.637.61.1.35.21.57.1.16]
+      delay: 1h
+      lifetime: 30d
+      description: 'Discovers ALL PON ports from the PONUTIL table and reads their IF-MIB admin/oper
+
+        status (PONUTIL index == PON ifIndex). No active-ONT filter, so empty and fully-down
+
+        ports are included.'
+      item_prototypes:
+      - uuid: 0646341622d34a77ad20a42631995278
+        name: 'PON {#PON}: port oper status'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.2.2.1.8.{#SNMPINDEX}
+        key: nokia.isam.pon.operstatus[{#SNMPINDEX}]
+        delay: 1m
+        history: 90d
+        trends: '0'
+        value_type: UNSIGNED
+        valuemap:
+          name: Interface oper status
+        description: 'ifOperStatus of the PON port (IF-MIB). On this ISAM the port reads DOWN when ALL ONTs
+
+          on it are down; an empty port reads UP. For single-ONT ports, DOWN just means that
+
+          customer is offline. A reliable "port down" alert is gated by provisioned-ONU count.'
+        tags:
+        - tag: component
+          value: PON
+        - tag: pon
+          value: '{#PON}'
+        trigger_prototypes:
+        - uuid: 57b19e5f65e44b44981365ece951e0b0
+          expression: min(/Nokia ISAM 7360/nokia.isam.pon.operstatus[{#SNMPINDEX}],{$PON.DOWN.TIME})=2 and last(/Nokia ISAM 7360/nokia.isam.pon.adminstatus[{#SNMPINDEX}])=1 and last(/Nokia ISAM 7360/nokia.isam.pon.onucount[{#SNMPINDEX}])>=2
+          name: 'PON {#PON}: port DOWN with 2+ ONUs (possible fiber/port fault)'
+          priority: HIGH
+          manual_close: 'YES'
+          description: 'The PON port has been operationally down for {$PON.DOWN.TIME} while admin-up and
+
+            having 2+ provisioned ONUs (all down together). Strong signal of a real port/fiber
+
+            fault. Single-ONU ports are excluded to avoid alarming on a single offline customer.'
+      - uuid: 6e7e7f9f0a474d9498491375469dd6b7
+        name: 'PON {#PON}: port admin status'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.2.2.1.7.{#SNMPINDEX}
+        key: nokia.isam.pon.adminstatus[{#SNMPINDEX}]
+        delay: 5m
+        history: 90d
+        trends: '0'
+        value_type: UNSIGNED
+        valuemap:
+          name: Interface admin status
+        description: ifAdminStatus of the PON port (IF-MIB). 1=up, 2=down (administratively disabled).
+        tags:
+        - tag: component
+          value: PON
+        - tag: pon
+          value: '{#PON}'
+      - uuid: 89a41d546aaf4c76beaff97dbfe33dec
+        name: 'PON {#PON}: provisioned ONUs'
+        type: DEPENDENT
+        key: nokia.isam.pon.onucount[{#SNMPINDEX}]
+        delay: '0'
+        history: 90d
+        trends: 365d
+        value_type: UNSIGNED
+        master_item:
+          key: nokia.isam.ont.walk
+        description: Number of provisioned ONUs on this PON port, counted from the bulk-walk master item. Provisioned (configured), not active.
+        preprocessing:
+        - type: JAVASCRIPT
+          parameters:
+          - var idx='{#SNMPINDEX}';var n=0;var L=value.split('\n');for(var i=0;i<L.length;i++){var m=L[i].match(/35\.11\.4\.1\.1\.(\d+)\.\d+/);if(m&&m[1]===idx)n++;}return n;
+        tags:
+        - tag: component
+          value: PON
+        - tag: pon
+          value: '{#PON}'
+        trigger_prototypes:
+        - uuid: 9499eed3d0fd43bc90caccd0d1174fa6
+          expression: last(/Nokia ISAM 7360/nokia.isam.pon.onucount[{#SNMPINDEX}])>={$PON.ONU.WARN}
+          name: 'PON {#PON}: provisioned ONUs near limit ({$PON.ONU.WARN}/{$PON.ONU.MAX})'
+          priority: WARNING
+          manual_close: 'YES'
+          description: The PON port is approaching the {$PON.ONU.MAX}-ONU limit. Plan a split or rebalance.
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - "try {\n  var d = JSON.parse(value);\n  var rows = Array.isArray(d) ? d : d.data;\n  rows.forEach(function(r){\n    var idx = parseInt(String(r['{#SNMPINDEX}']), 10);\n    var off = idx - 0x05A00000;\n    var slot = Math.floor(off / 0x02000000) + 1;\n    var rem = off % 0x02000000;\n    var port = Math.floor(rem / 0x10000) + 1;\n    r['{#PON}'] = '1/1/' + slot + '/' + port;\n  });\n  return JSON.stringify(Array.isArray(d) ? rows : {data: rows});\n} catch (e) { return value; }\n"
     macros:
     - macro: '{$CPU.CRIT}'
       value: '90'
@@ -1405,12 +1522,21 @@ zabbix_export:
     - macro: '{$PON.DOWN.BPS_PER_PCT}'
       value: '24883200'
       description: bps per 1% downstream. GPON=24883200, XGS-PON=99532800.
+    - macro: '{$PON.DOWN.TIME}'
+      value: 15m
+      description: Sustained window a PON port must stay operationally down before the (gated) port-down alert fires.
     - macro: '{$PON.DROP.WARN}'
       value: '200'
       description: Dropped-frames-per-interval threshold for alert.
     - macro: '{$PON.NOONT.TIME}'
       value: 1h
       description: Sustained window with zero active ONTs before flagging a PON as possibly down. Beware quiet PONs at off-peak hours (NUMACTIVEONTS reflects traffic, not provisioned ONTs).
+    - macro: '{$PON.ONU.MAX}'
+      value: '128'
+      description: Max provisioned ONUs per PON port (GPON hard limit).
+    - macro: '{$PON.ONU.WARN}'
+      value: '112'
+      description: Provisioned-ONU count that triggers a near-limit warning (approaching {$PON.ONU.MAX}).
     - macro: '{$PON.UP.BPS_PER_PCT}'
       value: '12441600'
       description: bps per 1% upstream. GPON=12441600, XGS-PON=99532800, XG-PON=24883200.
@@ -1459,6 +1585,32 @@ zabbix_export:
       mappings:
       - value: '2'
         newvalue: NO_TX_FAULT
+    - uuid: d63069617487441ca345fe2f79710c82
+      name: Interface oper status
+      mappings:
+      - value: '1'
+        newvalue: up
+      - value: '2'
+        newvalue: down
+      - value: '3'
+        newvalue: testing
+      - value: '4'
+        newvalue: unknown
+      - value: '5'
+        newvalue: dormant
+      - value: '6'
+        newvalue: notPresent
+      - value: '7'
+        newvalue: lowerLayerDown
+    - uuid: 87a5c4df07854574a47052bf1004e329
+      name: Interface admin status
+      mappings:
+      - value: '1'
+        newvalue: up
+      - value: '2'
+        newvalue: down
+      - value: '3'
+        newvalue: testing
   triggers:
   - uuid: 7ce80e1941314e51ab46d5aa0fd0a029
     expression: last(/Nokia ISAM 7360/nokia.isam.sfp.txfault[4353.257])<>2 and last(/Nokia ISAM 7360/nokia.isam.sfp.diagavail[4353.257])=1

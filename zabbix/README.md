@@ -59,6 +59,31 @@ configure pon interface 1/1/4/[1...16] utilization pon-pmcollect pm-enable
 | `{$PON.UP.BPS_PER_PCT}`   | `12441600` | bps per 1% upstream (GPON).                                         |
 | `{$PON.NOONT.TIME}`       | `1h`       | Sustained window with zero active ONTs before flagging a PON down.  |
 | `{$FAN.MODE.EXPECTED}`    | `2`        | Expected FAN mode (0=default,1=eco,2=protect,3=classic).            |
+| `{$PON.ONU.MAX}`          | `128`      | Max provisioned ONUs per PON port (GPON hard limit).                |
+| `{$PON.ONU.WARN}`         | `112`      | Provisioned-ONU count that raises a near-limit warning.             |
+| `{$PON.DOWN.TIME}`        | `15m`      | Sustained window a PON port must stay down before the port-down alert fires. |
+
+## PON port status & ONU inventory
+
+**Port status** comes from the standard IF-MIB (`ifOperStatus` / `ifAdminStatus`), which
+does work for PON ports on this ISAM even though the uplink traffic counters are stubbed.
+The PONUTIL index equals the PON `ifIndex`, so the same index decoder is reused.
+
+Important semantics, verified against the CLI: **a PON port reads DOWN when *all* its ONTs
+are down; an empty port reads UP.** On a single-ONU port, DOWN therefore just means that one
+customer is offline — not a fault. For this reason the port-down alert is *gated*: it only
+fires when the port has been down for `{$PON.DOWN.TIME}`, is admin-up, **and** has 2+
+provisioned ONUs (i.e. several customers went down together — a real fiber/port fault).
+
+**ONU inventory** is derived from a single bulk walk of the provisioned-ONT table
+(`.637...35.11.4.1.1`, one row per provisioned ONT, indexed by `<PON ifIndex>.<ONT id>`).
+A master item performs one walk; per-port counts are dependent items that count rows in
+Zabbix — one SNMP walk on the OLT regardless of how many ports there are.
+
+> **Large OLTs:** the master item runs every **1h** on purpose. ONU inventory changes slowly,
+> and on OLTs with thousands of ONTs a frequent full-column walk stresses the ISAM
+> control-plane CPU. Before enabling on a big OLT, verify GETBULK behaviour and watch the
+> NT CPU item during the walk.
 
 ## Item tags
 

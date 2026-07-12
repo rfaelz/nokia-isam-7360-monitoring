@@ -1967,7 +1967,7 @@
           "type": "barchart"
         }
       ],
-      "title": "PON - Utilizacao",
+      "title": "PON - Utilization",
       "type": "row"
     },
     {
@@ -2592,6 +2592,368 @@
       ],
       "title": "PON - Traffic",
       "type": "row"
+    },
+    {
+      "id": 28,
+      "type": "row",
+      "title": "PON - Port Status & Inventory",
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 19
+      },
+      "panels": [
+        {
+          "id": 25,
+          "type": "state-timeline",
+          "title": "PON port status (oper)",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "${DS_ZABBIX}"
+          },
+          "gridPos": {
+            "h": 10,
+            "w": 24,
+            "x": 0,
+            "y": 1
+          },
+          "description": "ifOperStatus per PON port. NOTE: on this ISAM a port reads DOWN when ALL its ONTs are down; an empty port reads UP.",
+          "targets": [
+            {
+              "application": {
+                "filter": ""
+              },
+              "datasource": {
+                "type": "alexanderzobnin-zabbix-datasource",
+                "uid": "${DS_ZABBIX}"
+              },
+              "functions": [],
+              "group": {
+                "filter": "/.*/"
+              },
+              "host": {
+                "filter": "$host"
+              },
+              "item": {
+                "filter": "/^PON .*: port oper status/"
+              },
+              "itemTag": {
+                "filter": ""
+              },
+              "itemids": "",
+              "mode": 0,
+              "options": {
+                "showDisabledItems": false,
+                "skipEmptyValues": false,
+                "useZabbixValueMapping": true
+              },
+              "queryType": "0",
+              "refId": "A",
+              "resultFormat": "time_series",
+              "table": false,
+              "textFilter": "",
+              "triggers": {
+                "acknowledged": 2,
+                "count": false,
+                "minSeverity": 0
+              },
+              "useCaptureGroups": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "lineWidth": 0,
+                "fillOpacity": 80,
+                "spanNulls": false
+              },
+              "mappings": [
+                {
+                  "type": "value",
+                  "options": {
+                    "1": {
+                      "text": "up",
+                      "color": "green",
+                      "index": 0
+                    },
+                    "2": {
+                      "text": "down",
+                      "color": "red",
+                      "index": 1
+                    }
+                  }
+                }
+              ],
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "showValue": "never",
+            "mergeValues": true,
+            "alignValue": "center",
+            "rowHeight": 0.9,
+            "legend": {
+              "showLegend": true,
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          }
+        },
+        {
+          "id": 26,
+          "type": "barchart",
+          "title": "Provisioned ONUs per PON",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "${DS_ZABBIX}"
+          },
+          "gridPos": {
+            "h": 12,
+            "w": 16,
+            "x": 0,
+            "y": 11
+          },
+          "description": "Provisioned (configured) ONUs per port, not active ones. Warning trigger at {$PON.ONU.WARN}; GPON limit is {$PON.ONU.MAX}=128.",
+          "targets": [
+            {
+              "application": {
+                "filter": ""
+              },
+              "datasource": {
+                "type": "alexanderzobnin-zabbix-datasource",
+                "uid": "${DS_ZABBIX}"
+              },
+              "functions": [],
+              "group": {
+                "filter": "/.*/"
+              },
+              "host": {
+                "filter": "$host"
+              },
+              "item": {
+                "filter": "/^PON .*: provisioned ONUs/"
+              },
+              "itemTag": {
+                "filter": ""
+              },
+              "itemids": "",
+              "mode": 0,
+              "options": {
+                "showDisabledItems": false,
+                "skipEmptyValues": false,
+                "useZabbixValueMapping": false
+              },
+              "queryType": "0",
+              "refId": "A",
+              "resultFormat": "time_series",
+              "table": false,
+              "textFilter": "",
+              "triggers": {
+                "acknowledged": 2,
+                "count": false,
+                "minSeverity": 0
+              },
+              "useCaptureGroups": false
+            }
+          ],
+          "transformations": [
+            {
+              "id": "reduce",
+              "options": {
+                "reducers": [
+                  "lastNotNull"
+                ],
+                "mode": "seriesToRows"
+              }
+            },
+            {
+              "id": "sortBy",
+              "options": {
+                "fields": {},
+                "sort": [
+                  {
+                    "field": "Last *",
+                    "desc": true
+                  }
+                ]
+              }
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "orange",
+                    "value": 112
+                  },
+                  {
+                    "color": "red",
+                    "value": 128
+                  }
+                ]
+              },
+              "custom": {
+                "axisPlacement": "auto",
+                "lineWidth": 1,
+                "fillOpacity": 80
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "orientation": "horizontal",
+            "xField": "Field",
+            "showValue": "always",
+            "stacking": "none",
+            "barWidth": 0.8,
+            "groupWidth": 0.7,
+            "fullHighlight": false,
+            "legend": {
+              "showLegend": false,
+              "displayMode": "list",
+              "placement": "bottom",
+              "calcs": []
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          }
+        },
+        {
+          "id": 27,
+          "type": "stat",
+          "title": "PON port admin status",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "${DS_ZABBIX}"
+          },
+          "gridPos": {
+            "h": 12,
+            "w": 8,
+            "x": 16,
+            "y": 11
+          },
+          "description": "ifAdminStatus per PON port. Distinguishes an administratively disabled port from an operational fault.",
+          "targets": [
+            {
+              "application": {
+                "filter": ""
+              },
+              "datasource": {
+                "type": "alexanderzobnin-zabbix-datasource",
+                "uid": "${DS_ZABBIX}"
+              },
+              "functions": [],
+              "group": {
+                "filter": "/.*/"
+              },
+              "host": {
+                "filter": "$host"
+              },
+              "item": {
+                "filter": "/^PON .*: port admin status/"
+              },
+              "itemTag": {
+                "filter": ""
+              },
+              "itemids": "",
+              "mode": 0,
+              "options": {
+                "showDisabledItems": false,
+                "skipEmptyValues": false,
+                "useZabbixValueMapping": true
+              },
+              "queryType": "0",
+              "refId": "A",
+              "resultFormat": "time_series",
+              "table": false,
+              "textFilter": "",
+              "triggers": {
+                "acknowledged": 2,
+                "count": false,
+                "minSeverity": 0
+              },
+              "useCaptureGroups": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                {
+                  "type": "value",
+                  "options": {
+                    "1": {
+                      "text": "up",
+                      "color": "green",
+                      "index": 0
+                    },
+                    "2": {
+                      "text": "down",
+                      "color": "red",
+                      "index": 1
+                    }
+                  }
+                }
+              ],
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "colorMode": "background",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "textMode": "value_and_name",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            }
+          }
+        }
+      ]
     }
   ],
   "preload": false,
