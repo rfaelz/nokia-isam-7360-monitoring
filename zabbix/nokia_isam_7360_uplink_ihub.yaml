@@ -1,0 +1,367 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+  - uuid: 2560f307c7934bc887c15d766d67f5f5
+    name: Templates/Nokia ISAM
+  templates:
+  - uuid: 25bc7c312ebb42dc9452bd39fa694840
+    template: Nokia ISAM 7360 - Uplink (ihub)
+    name: Nokia ISAM 7360 - Uplink (ihub)
+    description: 'Optional add-on to the "Nokia ISAM 7360" template: physical uplink port
+
+      traffic, errors, discards and link status (NT-A/NT-B eth1 + xfp1-4). REQUIRES a
+
+      dedicated SNMP community bound to SNMP context "ihub" on the OLT and a second SNMP
+
+      interface on the Zabbix host - see zabbix/README.md before linking this template.
+
+      Only link this template if uplink-port monitoring is needed; the main template is
+
+      fully functional on its own without it.
+
+      '
+    groups:
+    - name: Templates/Nokia ISAM
+    discovery_rules:
+    - uuid: 749794f6436d477c95b94abd6be55e10
+      name: Uplink ports (ihub)
+      type: SNMP_AGENT
+      key: nokia.isam.uplink.discovery
+      snmp_oid: discovery[{#PORT},1.3.6.1.2.1.31.1.1.1.1]
+      delay: 1h
+      lifetime: 30d
+      description: 'Discovers physical uplink-capable ports via the STANDARD ifName table (1.3.6.1.2.1.31.1.1.1.1),
+
+        filtered to NT-A/NT-B eth1+xfp1-4 (10 ports). Deliberately excludes the "lt:1/1/5..12" uplink-
+
+        capable LT slots (PON line cards) - traffic there is already covered per-PON, so a separate
+
+        uplink-style rollup is not wanted. Port names come straight from the OLT (e.g. "nt-a:xfp:1").
+
+
+        REQUIRES SNMP context "ihub" - a dedicated OLT community ({$SNMP_COMMUNITY_IHUB}) on a SECOND
+
+        Zabbix host interface, assigned manually to this rule and its item prototypes after linking
+
+        the template (Zabbix does not allow per-item community override since 6.0 - community is
+
+        interface-level only). Confirmed working: ifName, ifHighSpeed, ifOperStatus, ifInErrors,
+
+        ifOutErrors, ifInDiscards, ifOutDiscards all match CLI "show port" output exactly in this
+
+        context, in addition to the proprietary in/out-bytes counters.'
+      item_prototypes:
+      - uuid: 08e4e1842b4146f39b47b318daf48244
+        name: '{#PORT}: in-bytes (ihub)'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.637.61.1.85.1.4.2.1.4.{#SNMPINDEX}
+        key: nokia.isam.uplink.inbytes[{#SNMPINDEX}]
+        delay: 1m
+        history: 90d
+        trends: 365d
+        value_type: UNSIGNED
+        units: B
+        description: 'Inbound byte counter (Counter64) for this physical uplink port, from proprietary table
+
+          637.61.1.85.1.4.2 column 4. Requires SNMP context "ihub" - see {$SNMP_COMMUNITY_IHUB}.
+
+          Ports with no module/cable read 0, which is a valid, correct reading (not an error).'
+        tags:
+        - tag: component
+          value: Uplink
+        - tag: port
+          value: '{#PORT}'
+      - uuid: cb1533f679984650826249124d145128
+        name: '{#PORT}: out-bytes (ihub)'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.637.61.1.85.1.4.2.1.9.{#SNMPINDEX}
+        key: nokia.isam.uplink.outbytes[{#SNMPINDEX}]
+        delay: 1m
+        history: 90d
+        trends: 365d
+        value_type: UNSIGNED
+        units: B
+        description: 'Outbound byte counter (Counter64) for this physical uplink port, from proprietary table
+
+          637.61.1.85.1.4.2 column 9. Requires SNMP context "ihub" - see {$SNMP_COMMUNITY_IHUB}.
+
+          Ports with no module/cable read 0, which is a valid, correct reading (not an error).'
+        tags:
+        - tag: component
+          value: Uplink
+        - tag: port
+          value: '{#PORT}'
+      - uuid: 65dffddf0ede41ec9d09d37e6fc4182e
+        name: '{#PORT}: negotiated speed'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.31.1.1.1.15.{#SNMPINDEX}
+        key: nokia.isam.uplink.speed[{#SNMPINDEX}]
+        delay: 5m
+        history: 90d
+        trends: 365d
+        value_type: FLOAT
+        units: bps
+        preprocessing:
+        - type: MULTIPLIER
+          parameters:
+          - '1000000'
+        description: ifHighSpeed (standard IF-MIB, ihub context) - negotiated link speed. Confirmed 10000 (Mbps) = 10 Gbps on an active SFP+ port, matching CLI exactly.
+        tags:
+        - tag: component
+          value: Uplink
+        - tag: port
+          value: '{#PORT}'
+      - uuid: b800a38a94e34871a26f48c0b8e35099
+        name: '{#PORT}: oper status'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.2.2.1.8.{#SNMPINDEX}
+        key: nokia.isam.uplink.operstatus[{#SNMPINDEX}]
+        delay: 1m
+        history: 90d
+        trends: '0'
+        value_type: UNSIGNED
+        valuemap:
+          name: Interface oper status
+        description: ifOperStatus (standard IF-MIB, ihub context) - confirmed matches CLI "Oper State" exactly.
+        tags:
+        - tag: component
+          value: Uplink
+        - tag: port
+          value: '{#PORT}'
+        trigger_prototypes:
+        - uuid: e7ce644555f24ed7baca926ecaba5204
+          expression: last(/Nokia ISAM 7360 - Uplink (ihub)/nokia.isam.uplink.operstatus[{#SNMPINDEX}])<>1 and last(/Nokia ISAM 7360 - Uplink (ihub)/nokia.isam.uplink.adminstatus[{#SNMPINDEX}])=1 and {$UPLINK.MGMT_EXPECTED:"{#PORT}"}=1
+          name: '{#PORT}: uplink port is not up'
+          priority: HIGH
+          manual_close: 'YES'
+          description: 'This uplink-capable port is admin-up (configured for use) but not operationally up.
+
+            Gated two ways: (1) admin-up=1 excludes ports never configured (default admin-down);
+
+            (2) {$UPLINK.MGMT_EXPECTED:"{#PORT}"}=1 excludes ports intentionally, permanently
+
+            out of service on THIS host (e.g. FUI4/eth1 on OLTs with only in-band management) -
+
+            override this macro with context = the port name, set to 0, on hosts where that
+
+            applies (see zabbix/README.md).'
+      - uuid: c7134bd33ee349ef9c871f851c90fbf0
+        name: '{#PORT}: admin status'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.2.2.1.7.{#SNMPINDEX}
+        key: nokia.isam.uplink.adminstatus[{#SNMPINDEX}]
+        delay: 5m
+        history: 90d
+        trends: '0'
+        value_type: UNSIGNED
+        valuemap:
+          name: Interface admin status
+        description: ifAdminStatus (standard IF-MIB, ihub context) - distinguishes an administratively disabled port from an operational fault.
+        tags:
+        - tag: component
+          value: Uplink
+        - tag: port
+          value: '{#PORT}'
+      - uuid: 4406958f5bc04d7a94fef11273e0dd07
+        name: '{#PORT}: in-errors'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.2.2.1.14.{#SNMPINDEX}
+        key: nokia.isam.uplink.inerrors[{#SNMPINDEX}]
+        delay: 1m
+        history: 90d
+        trends: 365d
+        value_type: UNSIGNED
+        description: ifInErrors (standard IF-MIB, ihub context). Confirmed matches CLI "Errors" (input) exactly.
+        tags:
+        - tag: component
+          value: Uplink
+        - tag: port
+          value: '{#PORT}'
+        trigger_prototypes:
+        - uuid: ced10c6baf5e45349bfdda2133b9debf
+          expression: (last(/Nokia ISAM 7360 - Uplink (ihub)/nokia.isam.uplink.inerrors[{#SNMPINDEX}])-min(/Nokia ISAM 7360 - Uplink (ihub)/nokia.isam.uplink.inerrors[{#SNMPINDEX}],1h))>{$UPLINK.ERRORS.WARN}
+          name: '{#PORT}: new in-errors in the last hour'
+          priority: WARNING
+          manual_close: 'YES'
+          description: New in-errors counted on this uplink port within the last hour (threshold {$UPLINK.ERRORS.WARN}). Uplink ports should normally be clean.
+      - uuid: b1fa9f8c86e54bf6acdf5ff2d3f1cea8
+        name: '{#PORT}: out-errors'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.2.2.1.20.{#SNMPINDEX}
+        key: nokia.isam.uplink.outerrors[{#SNMPINDEX}]
+        delay: 1m
+        history: 90d
+        trends: 365d
+        value_type: UNSIGNED
+        description: ifOutErrors (standard IF-MIB, ihub context). Confirmed matches CLI "Errors" (output) exactly.
+        tags:
+        - tag: component
+          value: Uplink
+        - tag: port
+          value: '{#PORT}'
+        trigger_prototypes:
+        - uuid: 3b019ede319e405493ce80778c151d78
+          expression: (last(/Nokia ISAM 7360 - Uplink (ihub)/nokia.isam.uplink.outerrors[{#SNMPINDEX}])-min(/Nokia ISAM 7360 - Uplink (ihub)/nokia.isam.uplink.outerrors[{#SNMPINDEX}],1h))>{$UPLINK.ERRORS.WARN}
+          name: '{#PORT}: new out-errors in the last hour'
+          priority: WARNING
+          manual_close: 'YES'
+          description: New out-errors counted on this uplink port within the last hour (threshold {$UPLINK.ERRORS.WARN}). Uplink ports should normally be clean.
+      - uuid: 5131ec07d2894ba58e450e21d2876d0f
+        name: '{#PORT}: in-discards'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.2.2.1.13.{#SNMPINDEX}
+        key: nokia.isam.uplink.indiscards[{#SNMPINDEX}]
+        delay: 1m
+        history: 90d
+        trends: 365d
+        value_type: UNSIGNED
+        description: ifInDiscards (standard IF-MIB, ihub context). Confirmed matches CLI "Discards" (input), small drift explained by time between readings.
+        tags:
+        - tag: component
+          value: Uplink
+        - tag: port
+          value: '{#PORT}'
+        trigger_prototypes:
+        - uuid: 2a844c3a2130448eb9c8912624ac4885
+          expression: (last(/Nokia ISAM 7360 - Uplink (ihub)/nokia.isam.uplink.indiscards[{#SNMPINDEX}])-min(/Nokia ISAM 7360 - Uplink (ihub)/nokia.isam.uplink.indiscards[{#SNMPINDEX}],1h))>{$UPLINK.ERRORS.WARN}
+          name: '{#PORT}: new in-discards in the last hour'
+          priority: WARNING
+          manual_close: 'YES'
+          description: New in-discards counted on this uplink port within the last hour (threshold {$UPLINK.ERRORS.WARN}). Uplink ports should normally be clean.
+      - uuid: 01f2ab7f53864d7d8b1aed3249bce463
+        name: '{#PORT}: out-discards'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.2.2.1.19.{#SNMPINDEX}
+        key: nokia.isam.uplink.outdiscards[{#SNMPINDEX}]
+        delay: 1m
+        history: 90d
+        trends: 365d
+        value_type: UNSIGNED
+        description: ifOutDiscards (standard IF-MIB, ihub context). Confirmed matches CLI "Discards" (output) exactly.
+        tags:
+        - tag: component
+          value: Uplink
+        - tag: port
+          value: '{#PORT}'
+        trigger_prototypes:
+        - uuid: 193a8ce9628e4e118e59c8eee700ec2d
+          expression: (last(/Nokia ISAM 7360 - Uplink (ihub)/nokia.isam.uplink.outdiscards[{#SNMPINDEX}])-min(/Nokia ISAM 7360 - Uplink (ihub)/nokia.isam.uplink.outdiscards[{#SNMPINDEX}],1h))>{$UPLINK.ERRORS.WARN}
+          name: '{#PORT}: new out-discards in the last hour'
+          priority: WARNING
+          manual_close: 'YES'
+          description: New out-discards counted on this uplink port within the last hour (threshold {$UPLINK.ERRORS.WARN}). Uplink ports should normally be clean.
+      - uuid: ba6993536b704872ba732bf888876eec
+        name: '{#PORT}: in-speed'
+        type: DEPENDENT
+        key: nokia.isam.uplink.inspeed[{#SNMPINDEX}]
+        delay: '0'
+        history: 90d
+        trends: 365d
+        value_type: FLOAT
+        units: bps
+        master_item:
+          key: nokia.isam.uplink.inbytes[{#SNMPINDEX}]
+        description: 'Throughput computed from the cumulative byte counter via "Change per second"
+
+          (handles Counter64 wraparound) x8 (bytes -> bits).'
+        preprocessing:
+        - type: CHANGE_PER_SECOND
+          parameters: []
+        - type: MULTIPLIER
+          parameters:
+          - '8'
+        tags:
+        - tag: component
+          value: Uplink
+        - tag: port
+          value: '{#PORT}'
+      - uuid: e78f197966e74f41b3e5fa8d5609522a
+        name: '{#PORT}: out-speed'
+        type: DEPENDENT
+        key: nokia.isam.uplink.outspeed[{#SNMPINDEX}]
+        delay: '0'
+        history: 90d
+        trends: 365d
+        value_type: FLOAT
+        units: bps
+        master_item:
+          key: nokia.isam.uplink.outbytes[{#SNMPINDEX}]
+        description: 'Throughput computed from the cumulative byte counter via "Change per second"
+
+          (handles Counter64 wraparound) x8 (bytes -> bits).'
+        preprocessing:
+        - type: CHANGE_PER_SECOND
+          parameters: []
+        - type: MULTIPLIER
+          parameters:
+          - '8'
+        tags:
+        - tag: component
+          value: Uplink
+        - tag: port
+          value: '{#PORT}'
+      filter:
+        evaltype: AND
+        conditions:
+        - macro: '{#PORT}'
+          value: ^nt-[ab]:(eth|xfp):[0-9]+$
+          formulaid: A
+    macros:
+    - macro: '{$SNMP_COMMUNITY_IHUB}'
+      value: zbxihub
+      description: 'SNMP community with "context ihub" on the OLT, used ONLY for uplink port traffic
+
+        counters (table 637.61.1.85.1.4.2 - XFP and Ethernet/FUI physical ports). Requires a
+
+        SEPARATE SNMP interface on the Zabbix host (context ihub breaks all other OIDs if
+
+        applied to the main community). After linking this template, manually set the "Host
+
+        interface" of BOTH the "Uplink ports (ihub)" discovery rule AND its item prototypes
+
+        to that second interface - templates cannot assign this automatically.
+
+        See zabbix/README.md for the full OLT + Zabbix setup steps.'
+    - macro: '{$UPLINK.ERRORS.WARN}'
+      value: '0'
+      description: New errors/discards on an uplink port in the last hour that trigger a warning. Default 0 = alert on any new error (uplink ports should be clean; occasional PON-side drops are normal, uplink errors are not).
+    - macro: '{$UPLINK.MGMT_EXPECTED}'
+      value: '1'
+      description: 'Whether this uplink port is expected to be up. Default 1 (yes) for all discovered
+
+        ports. Override PER HOST with context = the exact port name (e.g. context "nt-a:eth:1")
+
+        set to 0 for ports that are permanently unused by design on that specific OLT - e.g.
+
+        the FUI4/eth1 out-of-band management port on OLTs that only have in-band management.
+
+        Do NOT use this for ports that are simply not configured yet (the admin-status gate
+
+        already handles that case) - only for ports intentionally, permanently out of service.'
+    valuemaps:
+    - uuid: ef73ee4dcf2b4ab1818bbcfb92daaf7e
+      name: Interface oper status
+      mappings:
+      - value: '1'
+        newvalue: up
+      - value: '2'
+        newvalue: down
+      - value: '3'
+        newvalue: testing
+      - value: '4'
+        newvalue: unknown
+      - value: '5'
+        newvalue: dormant
+      - value: '6'
+        newvalue: notPresent
+      - value: '7'
+        newvalue: lowerLayerDown
+    - uuid: baa9d7d2b95b4f6cb1e34d9c57a58078
+      name: Interface admin status
+      mappings:
+      - value: '1'
+        newvalue: up
+      - value: '2'
+        newvalue: down
+      - value: '3'
+        newvalue: testing

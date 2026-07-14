@@ -1009,6 +1009,259 @@ zabbix_export:
       tags:
       - tag: component
         value: PON
+    - uuid: 468ed501a06242129b92d68cf0934ef4
+      name: Active alarms (count)
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.3.4.0
+      key: nokia.isam.alarm.count
+      delay: 1m
+      history: 90d
+      trends: 365d
+      value_type: UNSIGNED
+      description: 'asamNumberofAlarmEntries - number of entries in the current alarm table.
+
+        Lightweight aggregate (single GET) validated against the live table.'
+      tags:
+      - tag: component
+        value: Alarms
+    - uuid: 122a450acfa84a77bc72d6632964abed
+      name: Active alarm severities (bitmap)
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.637.61.1.3.5.0
+      key: nokia.isam.alarm.severity
+      delay: 1m
+      history: 7d
+      trends: '0'
+      value_type: UNSIGNED
+      description: 'asamCurrentAlarmSeverityStatus - bitmap of severities present in the current
+
+        alarm table: 1=NoDefect, 2=Indeterminate, 4=Warning, 8=Minor, 16=Major, 32=Critical.
+
+        E.g. 56 = Critical+Major+Minor active. Master item for the per-severity flags.'
+      tags:
+      - tag: component
+        value: Alarms
+    - uuid: 955c0d312a8c41fc857bc762112fb560
+      name: 'Alarm severity active: critical'
+      type: DEPENDENT
+      key: nokia.isam.alarm.sev.critical
+      delay: '0'
+      history: 90d
+      trends: 365d
+      value_type: UNSIGNED
+      master_item:
+        key: nokia.isam.alarm.severity
+      description: 1 when at least one critical alarm is active on the OLT (bit 32 of the severity bitmap).
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - 'return (parseInt(value) & 32) ? 1 : 0;'
+      - type: DISCARD_UNCHANGED_HEARTBEAT
+        parameters:
+        - 1h
+      tags:
+      - tag: component
+        value: Alarms
+      triggers: []
+    - uuid: 979cd8d422fa482792a94233a0cb23f0
+      name: 'Alarm severity active: major'
+      type: DEPENDENT
+      key: nokia.isam.alarm.sev.major
+      delay: '0'
+      history: 90d
+      trends: 365d
+      value_type: UNSIGNED
+      master_item:
+        key: nokia.isam.alarm.severity
+      description: 1 when at least one major alarm is active on the OLT (bit 16 of the severity bitmap).
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - 'return (parseInt(value) & 16) ? 1 : 0;'
+      - type: DISCARD_UNCHANGED_HEARTBEAT
+        parameters:
+        - 1h
+      tags:
+      - tag: component
+        value: Alarms
+      triggers: []
+    - uuid: 603c29eb670041769871108ff9956892
+      name: 'Alarm severity active: minor'
+      type: DEPENDENT
+      key: nokia.isam.alarm.sev.minor
+      delay: '0'
+      history: 90d
+      trends: 365d
+      value_type: UNSIGNED
+      master_item:
+        key: nokia.isam.alarm.severity
+      description: 1 when at least one minor alarm is active on the OLT (bit 8 of the severity bitmap).
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - 'return (parseInt(value) & 8) ? 1 : 0;'
+      - type: DISCARD_UNCHANGED_HEARTBEAT
+        parameters:
+        - 1h
+      tags:
+      - tag: component
+        value: Alarms
+      triggers: []
+    - uuid: 726ef47b4dec43918fc7bbca9771a6e9
+      name: 'Alarm severity active: warning'
+      type: DEPENDENT
+      key: nokia.isam.alarm.sev.warning
+      delay: '0'
+      history: 90d
+      trends: 365d
+      value_type: UNSIGNED
+      master_item:
+        key: nokia.isam.alarm.severity
+      description: 1 when at least one warning alarm is active on the OLT (bit 4 of the severity bitmap).
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - 'return (parseInt(value) & 4) ? 1 : 0;'
+      - type: DISCARD_UNCHANGED_HEARTBEAT
+        parameters:
+        - 1h
+      tags:
+      - tag: component
+        value: Alarms
+    - uuid: 7ae22dc9978f42e49ff0694dea14da49
+      name: Active alarms table (bulk walk)
+      type: SNMP_AGENT
+      snmp_oid: walk[1.3.6.1.4.1.637.61.1.3.7.1.2,1.3.6.1.4.1.637.61.1.3.7.1.3,1.3.6.1.4.1.637.61.1.3.7.1.4]
+      key: nokia.isam.alarm.typewalk
+      delay: 5m
+      history: 1h
+      trends: '0'
+      value_type: TEXT
+      description: 'Single walk of three columns of the current-alarm table: alarm type (.2),
+
+        alarm status bitmap (.3) and affected-object ifIndex (.4). The table only holds
+
+        ACTIVE alarms, so its size scales with active fault count, not subscriber count -
+
+        confirmed safe on a busy OLT (425 active alarms observed, single walk, no issue).
+
+
+        Verified against CLI on TWO OLTs: type 40 (ont-ploam) status bit 32768 = ont-ploam-
+
+        inactive, bit 262144 = ont-ploam-dying-gasp (both confirmed with >85% ID match across
+
+        independent captures, gap explained by alarm churn between CLI and walk timing).
+
+
+        IMPORTANT CAVEAT: the CLI "ont-ploam" query groups TWO different SNMP types - type 40
+
+        AND type 41 (ont-gen). ont-ploam-sig-degrade lives under type 41, not 40. Type 41 is a
+
+        broad bucket shared by many unrelated ont-gen alarms; its status bits do not cleanly
+
+        isolate individual alarm names (a candidate bit for sig-degrade matched only 8/9 known
+
+        cases while also matching 113 unrelated ONTs - rejected, would massively overcount).
+
+        ont-ploam-loss-sig (LOS) has not been observed active on any tested OLT, so its type/
+
+        status is UNCONFIRMED. Do not assume it is type 40 or add a LOS item without validating
+
+        via a before/after walk diff around a controlled test (e.g. unplug a test ONT fiber).'
+      tags:
+      - tag: component
+        value: Alarms
+    - uuid: a049395bba99403190aab20d2a5cc85a
+      name: Active ONT PLOAM alarms (LOS/dying-gasp/...)
+      type: DEPENDENT
+      key: nokia.isam.alarm.ontploam
+      delay: '0'
+      history: 90d
+      trends: 365d
+      value_type: UNSIGNED
+      master_item:
+        key: nokia.isam.alarm.typewalk
+      description: 'Number of active ont-ploam alarms of type 40 (dying-gasp + inactive combined).
+
+        For cause-specific alerting see nokia.isam.alarm.dyinggasp (power) and
+
+        nokia.isam.alarm.ontinactive (fiber) - split by validated down-reason.
+
+        Does not include sig-degrade (unreliable to isolate, see typewalk item description).'
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - function parse(v){var T={},S={},X={};var L=v.split('\n');for(var i=0;i<L.length;i++){var m=L[i].match(/3\.7\.1\.(\d+)\.(\d+)\s*=\s*(?:INTEGER:\s*)?(-?\d+)/);if(!m)continue;var col=m[1],idx=m[2],val=parseInt(m[3]);if(col==='2')T[idx]=val;else if(col==='3')S[idx]=val;else if(col==='4')X[idx]=val;}return {T:T,S:S,X:X};}var p=parse(value);var n=0;for(var k in p.T){if(p.T[k]===40)n++;}return n;
+      tags:
+      - tag: component
+        value: Alarms
+      triggers: []
+    - uuid: dd38d41b3ab8428cbc91281e3d1aca72
+      name: Active ONT dying-gasp alarms
+      type: DEPENDENT
+      key: nokia.isam.alarm.dyinggasp
+      delay: '0'
+      history: 90d
+      trends: 365d
+      value_type: UNSIGNED
+      master_item:
+        key: nokia.isam.alarm.typewalk
+      description: 'ONTs whose active PLOAM alarm includes ont-ploam-dying-gasp (status bit 262144).
+
+        Dying gasp = the ONT reported power loss before going down.
+
+
+        Cross-checked against "show equipment ont operational-data" on 14 live ONTs across two
+
+        OLTs: every dying-gasp alarm had loss-of-signal=no / down-reason=dying-gasp (power loss,
+
+        graceful ONT shutdown); every inactive alarm had loss-of-signal=yes / down-reason=ploam-
+
+        inactive (fiber/signal problem: LOS, degraded signal that progressed to a drop, etc.),
+
+        zero exceptions. So: dying-gasp = power; inactive = fiber-side issue.'
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - function parse(v){var T={},S={},X={};var L=v.split('\n');for(var i=0;i<L.length;i++){var m=L[i].match(/3\.7\.1\.(\d+)\.(\d+)\s*=\s*(?:INTEGER:\s*)?(-?\d+)/);if(!m)continue;var col=m[1],idx=m[2],val=parseInt(m[3]);if(col==='2')T[idx]=val;else if(col==='3')S[idx]=val;else if(col==='4')X[idx]=val;}return {T:T,S:S,X:X};}var p=parse(value);var n=0;for(var k in p.T){if(p.T[k]===40 && ((p.S[k]||0) & 262144))n++;}return n;
+      tags:
+      - tag: component
+        value: Alarms
+      triggers: []
+    - uuid: 8b55dfe8c7de410cad10009e8d3f751d
+      name: Active ONT inactive alarms
+      type: DEPENDENT
+      key: nokia.isam.alarm.ontinactive
+      delay: '0'
+      history: 90d
+      trends: 365d
+      value_type: UNSIGNED
+      master_item:
+        key: nokia.isam.alarm.typewalk
+      description: 'ONTs whose active PLOAM alarm includes ont-ploam-inactive (status bit 32768).
+
+        Inactive = ONT dropped due to a fiber/signal problem (LOS, degraded signal, etc.),
+
+        NOT a power loss.
+
+
+        Cross-checked against "show equipment ont operational-data" on 14 live ONTs across two
+
+        OLTs: every dying-gasp alarm had loss-of-signal=no / down-reason=dying-gasp (power loss,
+
+        graceful ONT shutdown); every inactive alarm had loss-of-signal=yes / down-reason=ploam-
+
+        inactive (fiber/signal problem: LOS, degraded signal that progressed to a drop, etc.),
+
+        zero exceptions. So: dying-gasp = power; inactive = fiber-side issue.'
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - function parse(v){var T={},S={},X={};var L=v.split('\n');for(var i=0;i<L.length;i++){var m=L[i].match(/3\.7\.1\.(\d+)\.(\d+)\s*=\s*(?:INTEGER:\s*)?(-?\d+)/);if(!m)continue;var col=m[1],idx=m[2],val=parseInt(m[3]);if(col==='2')T[idx]=val;else if(col==='3')S[idx]=val;else if(col==='4')X[idx]=val;}return {T:T,S:S,X:X};}var p=parse(value);var n=0;for(var k in p.T){if(p.T[k]===40 && ((p.S[k]||0) & 32768))n++;}return n;
+      tags:
+      - tag: component
+        value: Alarms
+      triggers: []
     discovery_rules:
     - uuid: 3b1ee791f64e4138aab6e75f940b5baf
       name: Board temperature sensors
@@ -1499,11 +1752,102 @@ zabbix_export:
           priority: WARNING
           manual_close: 'YES'
           description: The PON port is approaching the {$PON.ONU.MAX}-ONU limit. Plan a split or rebalance.
+      - uuid: 814a1ccdb89247f88d31ebc61d5f83ad
+        name: 'PON {#PON}: active ONT PLOAM alarms'
+        type: DEPENDENT
+        key: nokia.isam.pon.ploam[{#SNMPINDEX}]
+        delay: '0'
+        history: 90d
+        trends: 365d
+        value_type: UNSIGNED
+        master_item:
+          key: nokia.isam.alarm.typewalk
+        description: 'ONTs of this PON currently in PLOAM fault of any kind (dying-gasp+inactive combined).
+
+          For cause-specific alerting see the dedicated dying-gasp (power) and inactive (fiber)
+
+          items/triggers on this same PON.'
+        preprocessing:
+        - type: JAVASCRIPT
+          parameters:
+          - function parse(v){var T={},S={},X={};var L=v.split('\n');for(var i=0;i<L.length;i++){var m=L[i].match(/3\.7\.1\.(\d+)\.(\d+)\s*=\s*(?:INTEGER:\s*)?(-?\d+)/);if(!m)continue;var col=m[1],idx=m[2],val=parseInt(m[3]);if(col==='2')T[idx]=val;else if(col==='3')S[idx]=val;else if(col==='4')X[idx]=val;}return {T:T,S:S,X:X};}var p=parse(value);var target=parseInt('{#SNMPINDEX}');var n=0;var ONT=0x5C00000,PON=0x5A00000;for(var k in p.T){if(p.T[k]!==40)continue;var x=p.X[k];if(x===undefined)continue;var off=x-ONT;if(off<0)continue;var slot=Math.floor(off/0x2000000);var rem=off%0x2000000;var pon=Math.floor(rem/0x10000);var ponIf=PON+slot*0x2000000+pon*0x10000;if(ponIf===target)n++;}return n;
+        tags:
+        - tag: component
+          value: Alarms
+        - tag: pon
+          value: '{#PON}'
+        trigger_prototypes: []
+      - uuid: e1056f7310544077b07f9fbd239aa49e
+        name: 'PON {#PON}: active dying-gasp alarms (power)'
+        type: DEPENDENT
+        key: nokia.isam.pon.dyinggasp[{#SNMPINDEX}]
+        delay: '0'
+        history: 90d
+        trends: 365d
+        value_type: UNSIGNED
+        master_item:
+          key: nokia.isam.alarm.typewalk
+        description: ONTs on this PON with an active dying-gasp alarm (power loss). Several at once suggests a localized power problem on this branch, not fiber.
+        preprocessing:
+        - type: JAVASCRIPT
+          parameters:
+          - function parse(v){var T={},S={},X={};var L=v.split('\n');for(var i=0;i<L.length;i++){var m=L[i].match(/3\.7\.1\.(\d+)\.(\d+)\s*=\s*(?:INTEGER:\s*)?(-?\d+)/);if(!m)continue;var col=m[1],idx=m[2],val=parseInt(m[3]);if(col==='2')T[idx]=val;else if(col==='3')S[idx]=val;else if(col==='4')X[idx]=val;}return {T:T,S:S,X:X};}var p=parse(value);var target=parseInt('{#SNMPINDEX}');var n=0;var ONT=0x5C00000,PON=0x5A00000;for(var k in p.T){if(p.T[k]!==40)continue;if(((p.S[k]||0) & 262144)===0)continue;var x=p.X[k];if(x===undefined)continue;var off=x-ONT;if(off<0)continue;var slot=Math.floor(off/0x2000000);var rem=off%0x2000000;var pon=Math.floor(rem/0x10000);var ponIf=PON+slot*0x2000000+pon*0x10000;if(ponIf===target)n++;}return n;
+        tags:
+        - tag: component
+          value: Alarms
+        - tag: pon
+          value: '{#PON}'
+        trigger_prototypes:
+        - uuid: 7f9b301f0251458caac1627a87691494
+          expression: last(/Nokia ISAM 7360/nokia.isam.pon.dyinggasp[{#SNMPINDEX}])>={$ALARM.DYINGGASP.PON.WARN}
+          name: 'PON {#PON}: possible localized power outage ({ITEM.LASTVALUE1} ONTs dying-gasp)'
+          priority: AVERAGE
+          manual_close: 'YES'
+          description: '{$ALARM.DYINGGASP.PON.WARN}+ ONTs on this single PON reported dying-gasp at once - power issue on this branch, not fiber.'
+      - uuid: 88a547dd1a4245c585ea93eb253edb00
+        name: 'PON {#PON}: active inactive/LOS alarms (fiber)'
+        type: DEPENDENT
+        key: nokia.isam.pon.inactive[{#SNMPINDEX}]
+        delay: '0'
+        history: 90d
+        trends: 365d
+        value_type: UNSIGNED
+        master_item:
+          key: nokia.isam.alarm.typewalk
+        description: ONTs on this PON with an active inactive alarm (fiber/signal loss). Several at once suggests a branch-fiber problem on this port, not power.
+        preprocessing:
+        - type: JAVASCRIPT
+          parameters:
+          - function parse(v){var T={},S={},X={};var L=v.split('\n');for(var i=0;i<L.length;i++){var m=L[i].match(/3\.7\.1\.(\d+)\.(\d+)\s*=\s*(?:INTEGER:\s*)?(-?\d+)/);if(!m)continue;var col=m[1],idx=m[2],val=parseInt(m[3]);if(col==='2')T[idx]=val;else if(col==='3')S[idx]=val;else if(col==='4')X[idx]=val;}return {T:T,S:S,X:X};}var p=parse(value);var target=parseInt('{#SNMPINDEX}');var n=0;var ONT=0x5C00000,PON=0x5A00000;for(var k in p.T){if(p.T[k]!==40)continue;if(((p.S[k]||0) & 32768)===0)continue;var x=p.X[k];if(x===undefined)continue;var off=x-ONT;if(off<0)continue;var slot=Math.floor(off/0x2000000);var rem=off%0x2000000;var pon=Math.floor(rem/0x10000);var ponIf=PON+slot*0x2000000+pon*0x10000;if(ponIf===target)n++;}return n;
+        tags:
+        - tag: component
+          value: Alarms
+        - tag: pon
+          value: '{#PON}'
+        trigger_prototypes:
+        - uuid: 092aedf5d276434ba64cd71c1f6def24
+          expression: last(/Nokia ISAM 7360/nokia.isam.pon.inactive[{#SNMPINDEX}])>={$ALARM.INACTIVE.PON.WARN}
+          name: 'PON {#PON}: possible branch-fiber problem ({ITEM.LASTVALUE1} ONTs inactive/LOS)'
+          priority: AVERAGE
+          manual_close: 'YES'
+          description: '{$ALARM.INACTIVE.PON.WARN}+ ONTs on this single PON went inactive at once - fiber/splitter issue on this branch, not power.'
       preprocessing:
       - type: JAVASCRIPT
         parameters:
         - "try {\n  var d = JSON.parse(value);\n  var rows = Array.isArray(d) ? d : d.data;\n  rows.forEach(function(r){\n    var idx = parseInt(String(r['{#SNMPINDEX}']), 10);\n    var off = idx - 0x05A00000;\n    var slot = Math.floor(off / 0x02000000) + 1;\n    var rem = off % 0x02000000;\n    var port = Math.floor(rem / 0x10000) + 1;\n    r['{#PON}'] = '1/1/' + slot + '/' + port;\n  });\n  return JSON.stringify(Array.isArray(d) ? rows : {data: rows});\n} catch (e) { return value; }\n"
     macros:
+    - macro: '{$ALARM.DYINGGASP.PON.WARN}'
+      value: '10'
+      description: Simultaneous active dying-gasp alarms on a SINGLE PON suggesting a localized power issue on that branch.
+    - macro: '{$ALARM.INACTIVE.PON.WARN}'
+      value: '10'
+      description: Simultaneous active inactive alarms on a SINGLE PON suggesting a fiber problem on that branch.
+    - macro: '{$ALARM.PLOAM.PON.WARN}'
+      value: '5'
+      description: Simultaneous active PLOAM alarms on a SINGLE PON that suggest a branch-fiber problem on that port (complements the all-ONTs-down gated trigger).
+    - macro: '{$ALARM.PLOAM.WARN}'
+      value: '10'
+      description: Number of simultaneous active ONT PLOAM alarms (LOS/dying-gasp/etc.) that suggests a mass outage rather than isolated offline customers.
     - macro: '{$CPU.CRIT}'
       value: '90'
       description: CPU threshold (%) for high alert.

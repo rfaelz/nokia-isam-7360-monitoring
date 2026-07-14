@@ -1,12 +1,22 @@
-# Zabbix template — Nokia ISAM 7360 FX
+# Zabbix templates — Nokia ISAM 7360 FX
 
-Zabbix **7.0** template (`nokia_isam_7360.yaml`) for the Nokia 7360 ISAM FX OLT over
-SNMP v2c. A single self-contained template: static items + four LLD rules
-(PON, board temperature, board memory, board CPU).
+Zabbix **7.0** templates for the Nokia 7360 ISAM FX OLT over SNMP v2c. Two files:
+
+| File                                    | Template name                        | Required? | Contents |
+| ---------------------------------------- | ------------------------------------- | --------- | -------- |
+| `nokia_isam_7360.yaml`                   | Nokia ISAM 7360                       | **Yes**   | Static items + LLD (PON, PON status/ONU inventory, board temperature, board memory, board CPU, alarms) |
+| `nokia_isam_7360_uplink_ihub.yaml`       | Nokia ISAM 7360 - Uplink (ihub)       | Optional  | Physical uplink port (NT-A/NT-B eth1 + xfp1-4) traffic, errors, discards, link status |
+
+The uplink template is a separate, **optional** add-on because it requires a
+dedicated SNMP context (`ihub`) on the OLT that the main template does not need.
+Link only the main template if uplink-port monitoring is not needed.
 
 ## Import
 
-**Data collection → Templates → Import**, select `nokia_isam_7360.yaml`.
+**Data collection → Templates → Import**, select `nokia_isam_7360.yaml` (always),
+and `nokia_isam_7360_uplink_ihub.yaml` (only if you want uplink-port monitoring —
+read the [Uplink port monitoring](#uplink-port-monitoring-optional-ihub-context)
+section below **before** linking it, it needs OLT-side setup first).
 
 When **re-importing** an updated version, enable **"Delete missing"** for *Items*,
 *Triggers* and *Discovery rules* so that removed objects are cleaned from the
@@ -17,6 +27,53 @@ Then, on the host:
 1. Add an **SNMP interface** (UDP 161, v2c) pointing to the OLT management IP.
 2. Set the `{$SNMP_COMMUNITY}` macro.
 3. Link the **Nokia ISAM 7360** template.
+4. *(Optional)* Set up and link **Nokia ISAM 7360 - Uplink (ihub)** — see below.
+
+## Uplink port monitoring (optional, ihub context)
+
+> **Requires OLT-side setup before linking this template.** The proprietary uplink
+> traffic counters (table `637.61.1.85.1.4.2`) only respond under SNMP context
+> `ihub`, which is not the context the main template uses.
+
+**1. On the OLT, create a DEDICATED community bound to SNMP context `ihub`:**
+
+```
+configure system security snmp
+community zbxihub host-address <ZABBIX_IP>/32
+  context ihub
+exit
+```
+
+> ⚠️ **WARNING — NEVER add `context ihub` to the existing/main community.** Doing
+> so breaks every other OID that community serves (verified in production — the
+> main community must stay context-less). Always create a **separate** community
+> name (e.g. `zbxihub`) dedicated to this context.
+
+**2. In Zabbix, add a SECOND SNMP interface on the OLT host** — same IP, port
+161, community = the value of `{$SNMP_COMMUNITY_IHUB}` (default `zbxihub`).
+
+**3. Link the `Nokia ISAM 7360 - Uplink (ihub)` template, then manually set the
+Host interface** on:
+
+- the **"Uplink ports (ihub)"** discovery rule, and
+- **all of its item prototypes**
+
+...to that second interface. This is **one-time per host**: items created by the
+discovery rule inherit the interface from the rule/prototypes automatically.
+Zabbix (>= 6.0) has no per-item community override — community is interface-level
+only, which is why this manual step is required.
+
+**Per-host override for ports out of service by design:** use
+`{$UPLINK.MGMT_EXPECTED:"<port>"}` = `0` on hosts where a specific uplink port is
+*permanently* unused (not just unconfigured), e.g. the FUI4/eth1 out-of-band
+management port on OLTs that only have in-band management:
+
+```
+{$UPLINK.MGMT_EXPECTED:"nt-a:eth:1"} = 0
+```
+
+Do **not** use this for ports that are simply not configured yet — the admin-status
+gate on the "port is not up" trigger already excludes those.
 
 ## OLT prerequisites (CLI)
 
@@ -62,6 +119,14 @@ configure pon interface 1/1/4/[1...16] utilization pon-pmcollect pm-enable
 | `{$PON.ONU.MAX}`          | `128`      | Max provisioned ONUs per PON port (GPON hard limit).                |
 | `{$PON.ONU.WARN}`         | `112`      | Provisioned-ONU count that raises a near-limit warning.             |
 | `{$PON.DOWN.TIME}`        | `15m`      | Sustained window a PON port must stay down before the port-down alert fires. |
+
+### Uplink template macros (`nokia_isam_7360_uplink_ihub.yaml`)
+
+| Macro                        | Default   | Purpose                                                              |
+| ----------------------------- | --------- | ---------------------------------------------------------------------- |
+| `{$SNMP_COMMUNITY_IHUB}`      | `zbxihub` | SNMP community bound to context `ihub` on the OLT (see setup above).  |
+| `{$UPLINK.ERRORS.WARN}`       | `0`       | New errors/discards on an uplink port in the last hour that trigger a warning. Default 0 = alert on any new error. |
+| `{$UPLINK.MGMT_EXPECTED}`     | `1`       | Whether a port is expected to be up. Override per host, per port (context = port name) with `0` for ports permanently out of service by design. |
 
 ## PON port status & ONU inventory
 

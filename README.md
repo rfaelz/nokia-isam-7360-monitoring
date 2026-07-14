@@ -1,8 +1,13 @@
 # Nokia ISAM 7360 FX — Zabbix + Grafana Monitoring
 
 Complete monitoring for the **Nokia 7360 ISAM FX** OLT (OLT level), over SNMP v2c
-using Nokia proprietary OIDs (enterprise `.637`) plus standard MIB-II — with a
-Zabbix **7.0** template and a portable Grafana dashboard.
+using Nokia proprietary OIDs (enterprise `.637`) plus standard MIB-II — with
+Zabbix **7.0** templates and a portable Grafana dashboard.
+
+Two Zabbix templates: the main **Nokia ISAM 7360** template (required) and an
+**optional** add-on, **Nokia ISAM 7360 - Uplink (ihub)**, for physical uplink-port
+traffic/errors — optional because it requires a dedicated SNMP context (`ihub`) on
+the OLT. See [`zabbix/README.md`](zabbix/README.md) for import and setup.
 
 ## Target
 
@@ -43,7 +48,8 @@ Zabbix **7.0** template and a portable Grafana dashboard.
 - `{$SNMP_COMMUNITY}` macro set on the host
 
 **On the OLT (CLI):** see [`zabbix/README.md`](zabbix/README.md) for the exact
-`cpu-load ... monitor start` and `pon ... pm-enable` commands.
+`cpu-load ... monitor start` and `pon ... pm-enable` commands, plus the
+`ihub`-context SNMP community setup required only for the optional uplink template.
 
 ## Repository layout
 
@@ -53,8 +59,9 @@ nokia-isam-7360-monitoring/
 ├── LICENSE
 ├── .gitignore
 ├── zabbix/
-│   ├── nokia_isam_7360.yaml     # Zabbix 7.0 template
-│   └── README.md                # Import, macros, CLI prerequisites, tags
+│   ├── nokia_isam_7360.yaml             # Zabbix 7.0 template (required)
+│   ├── nokia_isam_7360_uplink_ihub.yaml # Zabbix 7.0 template (optional, uplink/ihub)
+│   └── README.md                        # Import, macros, CLI prerequisites, tags
 └── grafana/
     ├── dashboards/
     │   └── nokia-isam-7360.json # Portable dashboard (${DS_ZABBIX} input)
