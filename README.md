@@ -1,6 +1,6 @@
 # Nokia ISAM 7360 FX — Zabbix + Grafana Monitoring
 
-Complete monitoring for the **Nokia 7360 ISAM FX** OLT (OLT level), over SNMP v2c
+Complete monitoring for the **Nokia 7360 ISAM FX** OLT (OLT level), over SNMP
 using Nokia proprietary OIDs (enterprise `.637`) plus standard MIB-II — with
 Zabbix **7.0** templates and a portable Grafana dashboard.
 
@@ -9,14 +9,21 @@ Two Zabbix templates: the main **Nokia ISAM 7360** template (required) and an
 traffic/errors — optional because it requires a dedicated SNMP context (`ihub`) on
 the OLT. See [`zabbix/README.md`](zabbix/README.md) for import and setup.
 
-## Target
+## Tested environment
 
-| Field         | Value              |
-| ------------- | ------------------ |
-| Hardware      | Nokia 7360 ISAM FX |
-| Firmware      | R6.2.04            |
-| Protocol      | SNMP v2c           |
-| Zabbix        | 7.0 LTS            |
+| Field           | Value               |
+| --------------- | -------------------- |
+| Hardware        | Nokia 7360 ISAM FX  |
+| Chassis         | FX4, FX8            |
+| Controller (NT) | FANT-F              |
+| Boards (LT)     | FGLT-D, FGLT-B      |
+| Firmware        | R6.2.04             |
+| ONUs tested     | ~3000               |
+| Zabbix          | 7.0 LTS             |
+
+Only tested on the hardware/firmware combinations above so far. If you run this
+on other firmware versions or boards, please open an issue or PR to report
+compatibility and we'll add it here.
 
 ## What is monitored
 
@@ -44,7 +51,7 @@ the OLT. See [`zabbix/README.md`](zabbix/README.md) for import and setup.
 **On Zabbix:**
 
 - Zabbix 7.0 or newer
-- Host with an SNMP interface (UDP 161, v2c) pointing to the OLT management IP
+- Host with an SNMP interface (UDP 161) pointing to the OLT management IP
 - `{$SNMP_COMMUNITY}` macro set on the host
 
 **On the OLT (CLI):** see [`zabbix/README.md`](zabbix/README.md) for the exact
@@ -71,19 +78,11 @@ nokia-isam-7360-monitoring/
     └── README.md
 ```
 
-## Roadmap
-
-- [x] Zabbix 7.0 template for Nokia 7360 ISAM FX (PON, XFP, temperature, memory, CPU, system)
-- [x] Grafana dashboard (Zabbix plugin — Alexander Zobnin), with OLT selector
-  * System health overview (uptime, firmware, FAN, CPU, memory %, temperature)
-  * PON utilization and traffic (DS/US %, bandwidth, active ONTs, dropped frames)
-  * Uplink XFP optics (RX/TX power, temperature, LOS)
-- [x] PON port status (UP/DOWN)
-- [ ] XFP / VLAN traffic counters
-- [x] Provisioned-ONU inventory per port (with near-limit macro)
-- [ ] LOS / DYING-GASP counters (evaluate SNMP trap vs. polling)
-- [ ] Out-of-band (FUI4) Ethernet port status
-
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+## Credits
+
+- Author: Rafael Bastos
+- Created with Claude Code (Anthropic)
